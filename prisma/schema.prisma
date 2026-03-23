@@ -1,0 +1,56 @@
+// MTBF/MTTR 설비 관리 시스템 Prisma 스키마
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 공장 (F1, F2)
+model Factory {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique // "F1", "F2"
+  processes Process[]
+  createdAt DateTime  @default(now())
+}
+
+// 공정 (라인)
+model Process {
+  id        Int       @id @default(autoincrement())
+  name      String    // "54인치", "MSC", "포생산", "1호기", "2호기" ...
+  factory   Factory   @relation(fields: [factoryId], references: [id])
+  factoryId Int
+  records   MonthlyRecord[]
+  createdAt DateTime  @default(now())
+
+  @@unique([factoryId, name])
+}
+
+// 월별 데이터
+model MonthlyRecord {
+  id            Int     @id @default(autoincrement())
+  year          Int     // 2024, 2025
+  month         Int     // 1 ~ 12
+
+  process       Process @relation(fields: [processId], references: [id])
+  processId     Int
+
+  // 가동시간 (분)
+  operatingTime Float?
+  // 정지횟수
+  stopCount     Int?
+  // 정지시간 (분)
+  stopTime      Float?
+  // MTBF (고장간격) - 자동 계산 or 수동 입력
+  mtbf          Float?
+  // MTTR (수리복구) - 자동 계산 or 수동 입력
+  mttr          Float?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([processId, year, month])
+}
