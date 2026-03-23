@@ -1,3 +1,8 @@
-// Prisma 5 does not use this config file. Kept for reference only.
-// DATABASE_URL is set in .env and used directly by Prisma.
-export default {};
+import { defineConfig } from "prisma/config";
+
+export default defineConfig({
+  schema: "prisma/schema.prisma",
+  migrations: {
+    seed: "tsx prisma/seed.ts",
+  },
+});
