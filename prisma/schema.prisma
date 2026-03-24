@@ -54,3 +54,21 @@ model MonthlyRecord {
 
   @@unique([processId, year, month])
 }
+
+
+model Record {
+  id        Int      @id @default(autoincrement())
+  year      Int
+  factory   String
+  process   String
+  month     Int
+
+  runTime   Float
+  downCount Int
+  downTime  Float
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([year, factory, process, month], name: "unique_record")
+}
