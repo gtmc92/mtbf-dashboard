@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import f1Data2025 from "./seed-data/f1-2025";
 import f2Data2025 from "./seed-data/f2-2025";
+import f2Data2024 from "./seed-data/f2-2024";
 const prisma = new PrismaClient();
 
 async function main() {
@@ -151,10 +152,59 @@ for (const row of f1Data2025) {
       },
     });
   }
-  console.log("🔥 inserting F2 data...");
+  console.log("🔥 inserting F2 2024 data...");
+
+  for (const row of f2Data2024) {
+    console.log(row.process, row.month);
+
+    const processId = f2ProcessMap.get(row.process);
+
+    if (!processId) {
+      throw new Error(`Process not found: ${row.process}`);
+    }
+
+    const mtbf =
+      row.stopCount && row.stopCount > 0
+        ? row.operatingTime / row.stopCount
+        : 0;
+
+    const mttr =
+      row.stopCount && row.stopCount > 0
+        ? row.stopTime / row.stopCount
+        : 0;
+
+    await prisma.monthlyRecord.upsert({
+      where: {
+        processId_year_month: {
+          processId,
+          year: row.year,
+          month: row.month,
+        },
+      },
+      update: {
+        operatingTime: row.operatingTime,
+        stopCount: row.stopCount,
+        stopTime: row.stopTime,
+        mtbf,
+        mttr,
+      },
+      create: {
+        processId,
+        year: row.year,
+        month: row.month,
+        operatingTime: row.operatingTime,
+        stopCount: row.stopCount,
+        stopTime: row.stopTime,
+        mtbf,
+        mttr,
+      },
+    });
+  }
+
   console.log("✅ Seed 완료");
   console.log(`F1 데이터: ${f1Data2025.length}건`);
-  console.log(`F2 데이터: ${f2Data2025.length}건`);
+  console.log(`F2 2025 데이터: ${f2Data2025.length}건`);
+  console.log(`F2 2024 데이터: ${f2Data2024.length}건`);
 }
 
 main()
