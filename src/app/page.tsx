@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KPISection, type KpiData } from "@/components/home/KPISection";
 import { AlertSection } from "@/components/home/AlertSection";
+import { OnboardingModal } from "@/components/home/OnboardingModal";
 
 const menus = [
   {
@@ -51,6 +52,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-gray-50">
+      <OnboardingModal />
       {/* 헤더 */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-5">
