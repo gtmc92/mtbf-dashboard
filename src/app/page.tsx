@@ -1,37 +1,52 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { KPISection, type KpiData } from "@/components/home/KPISection";
+import { AlertSection } from "@/components/home/AlertSection";
+
+const menus = [
+  {
+    href: "/input",
+    title: "데이터 관리",
+    description: "설비 운영 데이터 입력 및 관리",
+    icon: "📝",
+    color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
+  },
+  {
+    href: "/status",
+    title: "운영 현황",
+    description: "MTBF/MTTR 기반 설비 상태 조회",
+    icon: "📊",
+    color: "bg-green-50 hover:bg-green-100 border-green-200",
+  },
+  {
+    href: "/compare",
+    title: "성과 분석",
+    description: "기간별 신뢰성 비교 및 트렌드 분석",
+    icon: "📈",
+    color: "bg-orange-50 hover:bg-orange-100 border-orange-200",
+  },
+  {
+    href: "/facility",
+    title: "유지보수 분석",
+    description: "수리 유형 및 설비 문제 원인 분석",
+    icon: "🔧",
+    color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
+  },
+];
 
 export default function Home() {
-  const menus = [
-    {
-      href: "/input",
-      title: "데이터 입력",
-      description: "연도/공장/공정별 월간 가동시간·정지횟수·정지시간 입력",
-      icon: "📝",
-      color: "bg-blue-50 hover:bg-blue-100 border-blue-200",
-    },
-    {
-      href: "/status",
-      title: "현황 조회",
-      description: "공정별 MTBF/MTTR 월간 현황 테이블 조회",
-      icon: "📊",
-      color: "bg-green-50 hover:bg-green-100 border-green-200",
-    },
-    {
-      href: "/compare",
-      title: "연도 비교",
-      description: "전년도 대비 MTBF/MTTR 비교 차트 및 요약표",
-      icon: "📈",
-      color: "bg-orange-50 hover:bg-orange-100 border-orange-200",
-    },
-    {
-      href: "/facility",
-      title: "시설 현황",
-      description: "수리유형·설비별 사고·수리 건수 및 시간 현황",
-      icon: "🔧",
-      color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
-    },
-  ];
+  const [kpiData, setKpiData] = useState<KpiData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/home/kpi")
+      .then((r) => r.json())
+      .then((d) => setKpiData(d))
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -39,17 +54,17 @@ export default function Home() {
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-5xl mx-auto px-6 py-6">
           <h1 className="text-2xl font-bold text-gray-900">
-            설비 MTBF &amp; MTTR 관리 시스템
+            디어포스 설비 신뢰성 관리 &amp; 분석 플랫폼
           </h1>
           <p className="text-gray-500 mt-1 text-sm">
-            공장별 설비 신뢰성 지표 입력·조회·비교
+            실시간 설비 KPI 모니터링 및 유지보수 분석
           </p>
         </div>
       </div>
 
-      {/* 메뉴 카드 */}
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="max-w-5xl mx-auto px-6 py-10">
+        {/* 메뉴 카드 */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {menus.map((menu) => (
             <Link key={menu.href} href={menu.href}>
               <Card
@@ -65,38 +80,49 @@ export default function Home() {
           ))}
         </div>
 
-        {/* 용어 설명 */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base text-blue-700">
-                MTBF (Mean Time Between Failures)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-gray-600">
-              <p>
-                <strong>고장간격</strong> = 가동시간 ÷ 정지횟수
-              </p>
-              <p className="mt-1 text-gray-500">
-                값이 클수록 설비 신뢰성이 높음 ↑
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base text-orange-700">
-                MTTR (Mean Time To Repair)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-gray-600">
-              <p>
-                <strong>수리복구시간</strong> = 정지시간 ÷ 정지횟수
-              </p>
-              <p className="mt-1 text-gray-500">
-                값이 작을수록 빠른 복구를 의미 ↓
-              </p>
-            </CardContent>
-          </Card>
+        {/* KPI 요약 */}
+        <KPISection data={kpiData} loading={loading} />
+
+        {/* ALERT */}
+        <AlertSection data={kpiData} />
+
+        {/* 핵심 KPI 정의 */}
+        <div className="mt-10">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+            핵심 KPI 정의
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base text-blue-700">
+                  MTBF (Mean Time Between Failures)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-gray-600">
+                <p>
+                  <strong>고장간격</strong> = 가동시간 ÷ 정지횟수
+                </p>
+                <p className="mt-1 text-gray-500">
+                  값이 클수록 설비 신뢰성이 높음 ↑
+                </p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base text-orange-700">
+                  MTTR (Mean Time To Repair)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-gray-600">
+                <p>
+                  <strong>수리복구시간</strong> = 정지시간 ÷ 정지횟수
+                </p>
+                <p className="mt-1 text-gray-500">
+                  값이 작을수록 빠른 복구를 의미 ↓
+                </p>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </main>
