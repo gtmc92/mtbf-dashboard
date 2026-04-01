@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { KPISection, type KpiData } from "@/components/home/KPISection";
 import { AlertSection } from "@/components/home/AlertSection";
 import { OnboardingModal } from "@/components/home/OnboardingModal";
+import { SplashIntro } from "@/components/home/SplashIntro";
 
 const menus = [
   {
@@ -42,6 +43,8 @@ const menus = [
 export default function Home() {
   const [kpiData, setKpiData] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(false);
+  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
     fetch("/api/home/kpi")
@@ -50,9 +53,25 @@ export default function Home() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    if (!localStorage.getItem("deerfos_splash_done")) {
+      setShowSplash(true);
+    } else {
+      setSplashDone(true);
+    }
+  }, []);
+
   return (
     <main className="min-h-screen bg-gray-50">
-      <OnboardingModal />
+      {showSplash && (
+        <SplashIntro
+          onDone={() => {
+            setShowSplash(false);
+            setSplashDone(true);
+          }}
+        />
+      )}
+      {splashDone && <OnboardingModal />}
       {/* 헤더 */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-5">
