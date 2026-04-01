@@ -224,7 +224,11 @@ export default function StatusPage() {
                   }}
                 >
                   <SelectTrigger className="w-28">
-                    <SelectValue placeholder="공장 선택" />
+                    <span className={selectedFactory ? "" : "text-muted-foreground"}>
+                      {selectedFactory
+                        ? (factories.find((f) => String(f.id) === selectedFactory)?.name ?? selectedFactory)
+                        : "공장 선택"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {factories.map((f) => (
@@ -245,7 +249,13 @@ export default function StatusPage() {
                   disabled={!selectedFactory}
                 >
                   <SelectTrigger className="w-36">
-                    <SelectValue placeholder="공정 선택" />
+                    <span className={selectedProcess && selectedProcess !== "all" ? "" : "text-muted-foreground"}>
+                      {selectedProcess === "all"
+                        ? "전체"
+                        : selectedProcess
+                          ? (processes.find((p) => String(p.id) === selectedProcess)?.name ?? selectedProcess)
+                          : "공정 선택"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">전체</SelectItem>

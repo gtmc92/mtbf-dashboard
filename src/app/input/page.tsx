@@ -147,7 +147,11 @@ export default function InputPage() {
                 <label className="text-xs text-gray-500">공장</label>
                 <Select value={selectedFactory} onValueChange={(v) => { if (v) setSelectedFactory(v); }}>
                   <SelectTrigger className="w-28">
-                    <SelectValue placeholder="공장 선택" />
+                    <span className={selectedFactory ? "" : "text-muted-foreground"}>
+                      {selectedFactory
+                        ? (factories.find((f) => String(f.id) === selectedFactory)?.name ?? selectedFactory)
+                        : "공장 선택"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {factories.map((f) => (
@@ -165,7 +169,11 @@ export default function InputPage() {
                   disabled={!selectedFactory}
                 >
                   <SelectTrigger className="w-36">
-                    <SelectValue placeholder="공정 선택" />
+                    <span className={selectedProcess ? "" : "text-muted-foreground"}>
+                      {selectedProcess
+                        ? (processes.find((p) => String(p.id) === selectedProcess)?.name ?? selectedProcess)
+                        : "공정 선택"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {processes.map((p) => (
