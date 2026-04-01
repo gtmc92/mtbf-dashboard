@@ -24,6 +24,13 @@ export default function Home() {
       icon: "📈",
       color: "bg-orange-50 hover:bg-orange-100 border-orange-200",
     },
+    {
+      href: "/facility",
+      title: "시설 현황",
+      description: "수리유형·설비별 사고·수리 건수 및 시간 현황",
+      icon: "🔧",
+      color: "bg-purple-50 hover:bg-purple-100 border-purple-200",
+    },
   ];
 
   return (
