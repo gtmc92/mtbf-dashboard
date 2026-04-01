@@ -40,7 +40,7 @@ export function ProcessStackedChart({ data }: { data: Record<string, unknown>[] 
         <CartesianGrid strokeDasharray="3 3" vertical={false} />
         <XAxis dataKey="name" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
         <YAxis tick={{ fontSize: 11 }} />
-        <Tooltip formatter={(value: number, name: string) => [`${value.toLocaleString()}건`, name]} />
+        <Tooltip formatter={(value, name) => [`${Number(value).toLocaleString()}건`, name]} />
         <Legend />
         {repairTypes.map((type) => (
           <Bar

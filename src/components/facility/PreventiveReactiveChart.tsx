@@ -34,8 +34,10 @@ export function PreventiveReactiveChart({ data }: { data: ManagementTypeStat[] }
         <YAxis yAxisId="left" orientation="left" tick={{ fontSize: 11 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} />
         <Tooltip
-          formatter={(value: number, name: string) =>
-            name === "시간" ? [`${value.toLocaleString()}h`, name] : [`${value.toLocaleString()}건`, name]
+          formatter={(value, name) =>
+            name === "시간"
+              ? [`${Number(value).toLocaleString()}h`, name]
+              : [`${Number(value).toLocaleString()}건`, name]
           }
         />
         <Legend />

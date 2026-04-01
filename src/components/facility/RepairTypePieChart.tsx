@@ -65,8 +65,8 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
           ))}
         </Pie>
         <Tooltip
-          formatter={(value: number, name: string) => [
-            `${value.toLocaleString()}건 (${((value / total) * 100).toFixed(1)}%)`,
+          formatter={(value, name) => [
+            `${Number(value).toLocaleString()}건 (${((Number(value) / total) * 100).toFixed(1)}%)`,
             name,
           ]}
         />

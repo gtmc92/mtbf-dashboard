@@ -35,8 +35,10 @@ export function EquipmentTopChart({ data }: { data: EquipmentStat[] }) {
         <XAxis type="number" tick={{ fontSize: 11 }} />
         <YAxis dataKey="name" type="category" width={90} tick={{ fontSize: 11 }} />
         <Tooltip
-          formatter={(value: number, name: string) =>
-            name === "시간" ? [`${value.toLocaleString()}h`, name] : [`${value.toLocaleString()}건`, name]
+          formatter={(value, name) =>
+            name === "시간"
+              ? [`${Number(value).toLocaleString()}h`, name]
+              : [`${Number(value).toLocaleString()}건`, name]
           }
           labelFormatter={(label) => {
             const item = chartData.find((d) => d.name === label);
