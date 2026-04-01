@@ -22,8 +22,6 @@ import Link from "next/link";
 import type { Factory, MonthlyRecord, Process } from "@/types";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
-const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = [CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
 
 interface ProcessGroup {
   processId: number;
@@ -42,12 +40,27 @@ interface MonthlyChartData {
 export default function StatusPage() {
   const [factories, setFactories] = useState<Factory[]>([]);
   const [processes, setProcesses] = useState<Process[]>([]);
-  const [selectedYear, setSelectedYear] = useState<string>(String(CURRENT_YEAR));
+  const [years, setYears] = useState<number[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>("");
   const [selectedFactory, setSelectedFactory] = useState<string>("");
   const [selectedProcess, setSelectedProcess] = useState<string>("all");
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [factoryName, setFactoryName] = useState("");
+
+  // 연도 목록 초기 로드 (DB 기준)
+  useEffect(() => {
+    fetch("/api/years")
+      .then((r) => r.json())
+      .then((data: number[]) => {
+        setYears(data);
+        if (data.length > 0) {
+          setSelectedYear((prev) =>
+            data.includes(Number(prev)) ? prev : String(data[data.length - 1])
+          );
+        }
+      });
+  }, []);
 
   // 공장 목록 초기 로드
   useEffect(() => {
@@ -194,7 +207,7 @@ export default function StatusPage() {
                     <SelectValue placeholder="연도" />
                   </SelectTrigger>
                   <SelectContent>
-                    {YEARS.map((y) => (
+                    {years.map((y) => (
                       <SelectItem key={y} value={String(y)}>
                         {y}년
                       </SelectItem>
