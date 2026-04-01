@@ -9,6 +9,10 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import Link from "next/link";
+import { RepairTypePieChart } from "@/components/facility/RepairTypePieChart";
+import { PreventiveReactiveChart } from "@/components/facility/PreventiveReactiveChart";
+import { EquipmentTopChart } from "@/components/facility/EquipmentTopChart";
+import { ProcessStackedChart } from "@/components/facility/ProcessStackedChart";
 
 interface RepairTypeStat {
   repairType: string;
@@ -34,6 +38,7 @@ interface FacilitySummary {
   byRepairType: RepairTypeStat[];
   byManagementType: ManagementTypeStat[];
   topEquipment: EquipmentStat[];
+  byEquipmentRepairType: Record<string, unknown>[];
 }
 
 function fmtMin(min: number) {
@@ -75,7 +80,7 @@ export default function FacilityPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="bg-white border-b shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link href="/" className="text-gray-400 hover:text-gray-600 text-sm">
             ← 홈
           </Link>
@@ -83,7 +88,7 @@ export default function FacilityPage() {
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
         {/* 연도 필터 */}
         <Card>
           <CardContent className="pt-4">
@@ -151,58 +156,42 @@ export default function FacilityPage() {
               </Card>
             </div>
 
+            {/* 차트 행 1: 수리유형 분포 + Preventive vs Reactive */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* 수리유형별 현황 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">수리유형별 현황</CardTitle>
+                  <CardTitle className="text-base">수리 유형 분포</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-gray-500 text-xs">
-                        <th className="text-left py-1">수리유형</th>
-                        <th className="text-right py-1">건수</th>
-                        <th className="text-right py-1">시간</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.byRepairType.map((r) => (
-                        <tr key={r.repairType} className="border-b last:border-0">
-                          <td className="py-1.5 text-gray-700">{r.repairType}</td>
-                          <td className="py-1.5 text-right font-medium">{r.count.toLocaleString()}</td>
-                          <td className="py-1.5 text-right text-gray-500">{fmtMin(r.durationMin)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <RepairTypePieChart data={data.byRepairType} />
                 </CardContent>
               </Card>
-
-              {/* 설비별 상위 10 */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">설비별 수리 현황 (상위 10)</CardTitle>
+                  <CardTitle className="text-base">Preventive vs Reactive</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b text-gray-500 text-xs">
-                        <th className="text-left py-1">설비</th>
-                        <th className="text-right py-1">건수</th>
-                        <th className="text-right py-1">시간</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.topEquipment.map((e) => (
-                        <tr key={e.equipment} className="border-b last:border-0">
-                          <td className="py-1.5 text-gray-700 truncate max-w-[140px]">{e.equipment}</td>
-                          <td className="py-1.5 text-right font-medium">{e.incidentCount.toLocaleString()}</td>
-                          <td className="py-1.5 text-right text-gray-500">{fmtMin(e.totalDurationMin)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <PreventiveReactiveChart data={data.byManagementType} />
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 차트 행 2: 설비별 TOP10 + 공정별 수리유형 */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">설비별 수리 건수 TOP 10</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <EquipmentTopChart data={data.topEquipment} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">설비별 수리유형 분포</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ProcessStackedChart data={data.byEquipmentRepairType} />
                 </CardContent>
               </Card>
             </div>

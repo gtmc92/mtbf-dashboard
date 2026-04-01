@@ -13,31 +13,25 @@ export async function GET(req: Request) {
     repairTypeGroups,
     managementTypeGroups,
     equipmentGroups,
+    equipmentRepairTypeRows,
     yearRows,
   ] = await Promise.all([
-    // 전체 집계 (IncidentRecord 기준)
     prisma.incidentRecord.aggregate({
       where,
       _count: { id: true },
       _sum: { durationMin: true },
     }),
-
-    // 수리유형별 집계 (RepairTypeRecord)
     prisma.repairTypeRecord.groupBy({
       by: ["repairType"],
       where,
       _sum: { count: true, durationMin: true },
       orderBy: { _sum: { count: "desc" } },
     }),
-
-    // 관리구분별 집계 (Preventive / Reactive)
     prisma.repairTypeRecord.groupBy({
       by: ["managementType"],
       where,
       _sum: { count: true, durationMin: true },
     }),
-
-    // 설비별 상위 10개 (IncidentRecord)
     prisma.incidentRecord.groupBy({
       by: ["equipment"],
       where,
@@ -46,14 +40,33 @@ export async function GET(req: Request) {
       orderBy: { _count: { id: "desc" } },
       take: 10,
     }),
-
-    // 연도 목록
+    // 공정별 + 수리유형별 집계 (stacked chart용)
+    prisma.repairTypeRecord.groupBy({
+      by: ["equipment", "repairType"],
+      where,
+      _sum: { count: true },
+    }),
     prisma.incidentRecord.findMany({
       select: { year: true },
       distinct: ["year"],
       orderBy: { year: "asc" },
     }),
   ]);
+
+  // top 10 equipment 목록
+  const top10 = equipmentGroups.map((g) => g.equipment);
+
+  // 공정별 수리유형 피벗 (top10 기준)
+  const pivotMap: Record<string, Record<string, number>> = {};
+  for (const row of equipmentRepairTypeRows) {
+    if (!top10.includes(row.equipment)) continue;
+    if (!pivotMap[row.equipment]) pivotMap[row.equipment] = {};
+    pivotMap[row.equipment][row.repairType ?? "미분류"] = row._sum.count ?? 0;
+  }
+  const byEquipmentRepairType = top10.map((eq) => ({
+    equipment: eq,
+    ...pivotMap[eq],
+  }));
 
   return NextResponse.json({
     years: yearRows.map((r) => r.year),
@@ -76,5 +89,6 @@ export async function GET(req: Request) {
       incidentCount: g._count.id,
       totalDurationMin: g._sum.durationMin ?? 0,
     })),
+    byEquipmentRepairType,
   });
 }
