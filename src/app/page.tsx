@@ -40,42 +40,44 @@ const menus = [
   },
 ];
 
+// appState: null = 아직 판단 전, "splash" = 스플래시 표시, "home" = 홈 표시
+type AppState = null | "splash" | "home";
+
 export default function Home() {
+  const [appState, setAppState] = useState<AppState>(null);
   const [kpiData, setKpiData] = useState<KpiData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showSplash, setShowSplash] = useState(false);
-  const [splashDone, setSplashDone] = useState(false);
 
   useEffect(() => {
+    // localStorage 판단은 동기적으로 즉시 실행
+    const splashDone = localStorage.getItem("deerfos_splash_done");
+    setAppState(splashDone ? "home" : "splash");
+
+    // KPI 데이터는 병렬로 미리 로드
     fetch("/api/home/kpi")
       .then((r) => r.json())
       .then((d) => setKpiData(d))
       .finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => {
-    if (!localStorage.getItem("deerfos_splash_done")) {
-      setShowSplash(true);
-    } else {
-      setSplashDone(true);
-    }
-  }, []);
+  // 판단 전: 흰 화면 유지 (홈 UI 노출 방지)
+  if (appState === null) {
+    return <div className="min-h-screen bg-white" />;
+  }
 
+  // 스플래시
+  if (appState === "splash") {
+    return <SplashIntro onDone={() => setAppState("home")} />;
+  }
+
+  // 홈
   return (
     <main className="min-h-screen bg-gray-50">
-      {showSplash && (
-        <SplashIntro
-          onDone={() => {
-            setShowSplash(false);
-            setSplashDone(true);
-          }}
-        />
-      )}
-      {splashDone && <OnboardingModal />}
+      <OnboardingModal />
+
       {/* 헤더 */}
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-5">
-          {/* CI 로고 */}
           <Image
             src="/ci-img-1.png"
             alt="Deerfos logo"
@@ -84,7 +86,6 @@ export default function Home() {
             className="shrink-0"
             priority
           />
-          {/* 브랜드명 + 시스템명 */}
           <div>
             <p className="text-xs font-semibold tracking-widest text-green-600 uppercase mb-0.5">
               DEERFOS

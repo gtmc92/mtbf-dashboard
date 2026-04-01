@@ -9,16 +9,17 @@ interface Props {
 
 export function SplashIntro({ onDone }: Props) {
   const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(true);
 
   useEffect(() => {
+    // fade-in
     const t1 = setTimeout(() => setVisible(true), 50);
-    const t2 = setTimeout(() => setVisible(false), 1800);
+    // fade-out 시작 (2.5초 유지)
+    const t2 = setTimeout(() => setVisible(false), 2600);
+    // 완료 (fade-out 0.6초 후)
     const t3 = setTimeout(() => {
-      setMounted(false);
       localStorage.setItem("deerfos_splash_done", "1");
       onDone();
-    }, 2350);
+    }, 3200);
 
     return () => {
       clearTimeout(t1);
@@ -27,29 +28,27 @@ export function SplashIntro({ onDone }: Props) {
     };
   }, [onDone]);
 
-  if (!mounted) return null;
-
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-white transition-opacity duration-500 ${
+      className={`min-h-screen flex flex-col items-center justify-center bg-white transition-opacity duration-600 ${
         visible ? "opacity-100" : "opacity-0"
       }`}
     >
       <Image
         src="/ci-img-1.png"
         alt="Deerfos"
-        width={120}
-        height={120}
+        width={180}
+        height={180}
         priority
-        className="mb-6"
+        className="mb-8"
       />
-      <p className="text-2xl font-bold tracking-widest text-green-600 mb-3">
+      <p className="text-4xl font-bold tracking-widest text-green-600 mb-4">
         DEERFOS
       </p>
-      <p className="text-base text-gray-700 mb-1">
+      <p className="text-xl text-gray-700 mb-2">
         설비 신뢰성을 데이터로 관리하다
       </p>
-      <p className="text-xs text-gray-400">
+      <p className="text-sm text-gray-400">
         디어포스 설비 신뢰성 관리 &amp; 분석 플랫폼
       </p>
     </div>
