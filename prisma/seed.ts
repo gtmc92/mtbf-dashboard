@@ -1,9 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import * as fs from "fs";
 import * as path from "path";
-// import f1Data2025 from "./seed-data/f1-2025";
-// import f2Data2025 from "./seed-data/f2-2025";
-// import f2Data2024 from "./seed-data/f2-2024";
 
 const prisma = new PrismaClient();
 
@@ -110,12 +107,21 @@ async function getOrCreateProcess(name: string, factoryId: number) {
 // ─── main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
+  // ── 1. 기존 데이터 전체 삭제 (외래키 순서 준수) ──
+  console.log("🗑️  기존 데이터 삭제 중...");
+  const delRecords = await prisma.monthlyRecord.deleteMany();
+  const delProcesses = await prisma.process.deleteMany();
+  const delFactories = await prisma.factory.deleteMany();
+  console.log(
+    `   MonthlyRecord ${delRecords.count}건, Process ${delProcesses.count}건, Factory ${delFactories.count}건 삭제 완료`
+  );
+
+  // ── 2. DATA_PTEAM.csv 로드 (생산 KPI) ──
   const csvPath = path.join(__dirname, "DATA_PTEAM.csv");
   const rows = loadCsvRows(csvPath);
+  console.log(`\n📄 DATA_PTEAM.csv 로드 완료: ${rows.length}행`);
 
-  console.log(`✅ CSV 로드 완료: ${rows.length}행`);
-
-  // Factory upsert
+  // ── 3. Factory 생성 ──
   const factoryNames = [...new Set(rows.map((r) => r.factory))];
   const factoryMap = new Map<string, number>();
 
@@ -123,10 +129,9 @@ async function main() {
     const factory = await getOrCreateFactory(name);
     factoryMap.set(name, factory.id);
   }
+  console.log(`🏭 Factory 생성: ${factoryMap.size}개 (${[...factoryMap.keys()].join(", ")})`);
 
-  console.log(`🏭 Factory upsert: ${factoryMap.size}개 (${[...factoryMap.keys()].join(", ")})`);
-
-  // Process upsert
+  // ── 4. Process 생성 ──
   const processMap = new Map<string, number>();
   const processPairs = [
     ...new Map(rows.map((r) => [`${r.factory}::${r.process}`, r])).values(),
@@ -138,10 +143,10 @@ async function main() {
     const proc = await getOrCreateProcess(row.process, factoryId);
     processMap.set(`${row.factory}::${row.process}`, proc.id);
   }
+  console.log(`⚙️  Process 생성: ${processMap.size}개`);
 
-  console.log(`⚙️  Process upsert: ${processMap.size}개`);
-
-  // MonthlyRecord upsert
+  // ── 5. MonthlyRecord 생성 ──
+  // DATA_BASE.csv, DATA_TYPE.csv는 이후 같은 패턴으로 여기에 추가
   let insertedCount = 0;
 
   for (const row of rows) {
@@ -160,18 +165,8 @@ async function main() {
         ? row.stopTime / row.stopCount
         : 0;
 
-    await prisma.monthlyRecord.upsert({
-      where: {
-        processId_year_month: { processId, year: row.year, month: row.month },
-      },
-      update: {
-        operatingTime: row.operatingTime,
-        stopCount: row.stopCount,
-        stopTime: row.stopTime,
-        mtbf,
-        mttr,
-      },
-      create: {
+    await prisma.monthlyRecord.create({
+      data: {
         processId,
         year: row.year,
         month: row.month,
@@ -186,7 +181,7 @@ async function main() {
     insertedCount++;
   }
 
-  console.log("─────────────────────────────────────");
+  console.log("\n─────────────────────────────────────");
   console.log("✅ Seed 완료");
   console.log(`   CSV 총 행 수          : ${rows.length}`);
   console.log(`   MonthlyRecord 반영 건수: ${insertedCount}`);
