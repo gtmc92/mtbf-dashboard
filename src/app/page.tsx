@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { KPISection, type KpiData } from "@/components/home/KPISection";
@@ -52,13 +53,28 @@ export default function Home() {
     <main className="min-h-screen bg-gray-50">
       {/* 헤더 */}
       <div className="bg-white border-b shadow-sm">
-        <div className="max-w-5xl mx-auto px-6 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">
-            디어포스 설비 신뢰성 관리 &amp; 분석 플랫폼
-          </h1>
-          <p className="text-gray-500 mt-1 text-sm">
-            실시간 설비 KPI 모니터링 및 유지보수 분석
-          </p>
+        <div className="max-w-5xl mx-auto px-6 py-5 flex items-center gap-5">
+          {/* CI 로고 */}
+          <Image
+            src="/ci-img-1.png"
+            alt="Deerfos logo"
+            width={64}
+            height={64}
+            className="shrink-0"
+            priority
+          />
+          {/* 브랜드명 + 시스템명 */}
+          <div>
+            <p className="text-xs font-semibold tracking-widest text-green-600 uppercase mb-0.5">
+              DEERFOS
+            </p>
+            <h1 className="text-xl font-bold text-gray-900 leading-tight">
+              설비 신뢰성 관리 &amp; 분석 플랫폼
+            </h1>
+            <p className="text-gray-400 mt-0.5 text-xs">
+              공장별 신뢰성 지표 및 유지보수 인사이트 통합 관리
+            </p>
+          </div>
         </div>
       </div>
 
