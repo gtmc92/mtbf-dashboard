@@ -147,9 +147,21 @@ async function main() {
 
   // ── 5. MonthlyRecord 생성 ──
   // DATA_BASE.csv, DATA_TYPE.csv는 이후 같은 패턴으로 여기에 추가
+
+  // CSV에 중복 행이 있을 경우 마지막 값으로 덮어쓰기 (key: factory::process::year::month)
+  const dedupMap = new Map<string, CsvRow>();
+  for (const row of rows) {
+    const key = `${row.factory}::${row.process}::${row.year}::${row.month}`;
+    dedupMap.set(key, row);
+  }
+  const uniqueRows = [...dedupMap.values()];
+  if (uniqueRows.length < rows.length) {
+    console.log(`⚠️  중복 제거: ${rows.length - uniqueRows.length}건 제거 → ${uniqueRows.length}건 삽입`);
+  }
+
   let insertedCount = 0;
 
-  for (const row of rows) {
+  for (const row of uniqueRows) {
     const processId = processMap.get(`${row.factory}::${row.process}`);
     if (!processId) {
       throw new Error(`Process 맵에 없음: ${row.factory}::${row.process}`);
