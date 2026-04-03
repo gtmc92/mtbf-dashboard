@@ -14,6 +14,7 @@ export interface KpiData {
   noFailureProcessCount: number;
   totalProcessCount: number;
   noFailureProcessRatio: number;
+  noFailureLastMonth: number;
 }
 
 interface Props {
@@ -111,7 +112,10 @@ export function KPISection({ data, loading }: Props) {
                 {data.noFailureProcessRatio}
                 <span className="text-sm font-normal ml-1">%</span>
               </p>
-              <p className="text-xs text-teal-600 mt-1">
+              <p className="text-xs text-teal-500 mt-0.5">
+                {new Date().getFullYear()}년 {data.noFailureLastMonth}월 기준
+              </p>
+              <p className="text-xs text-teal-600 mt-0.5">
                 {data.totalProcessCount}개 중 {data.noFailureProcessCount}개 공정 무고장
               </p>
             </>

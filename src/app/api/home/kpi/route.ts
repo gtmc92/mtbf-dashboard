@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const currentYear = new Date().getFullYear();
 
-  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, processStopGroups] =
+  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, lastMonthAgg] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
         where: { year: currentYear, stopCount: { gt: 0 } },
@@ -29,11 +29,10 @@ export async function GET() {
         orderBy: { _count: { id: "desc" } },
         take: 1,
       }),
-      // 공정별 정지횟수 합계 (무고장 공정 비율 계산용)
-      prisma.monthlyRecord.groupBy({
-        by: ["processId"],
+      // 마지막 데이터 월 조회
+      prisma.monthlyRecord.aggregate({
         where: { year: currentYear },
-        _sum: { stopCount: true },
+        _max: { month: true },
       }),
     ]);
 
@@ -66,10 +65,15 @@ export async function GET() {
   const preventiveRatio =
     prTotal > 0 ? Math.round((preventiveCount / prTotal) * 1000) / 10 : 0;
 
-  // 무고장 공정 비율 계산
-  const totalProcessCount = processStopGroups.length;
-  const noFailureProcessCount = processStopGroups.filter(
-    (g) => (g._sum.stopCount ?? 0) === 0
+  // 마지막 데이터 월 기준 무고장 공정 비율 계산
+  const lastMonth = lastMonthAgg._max.month ?? (new Date().getMonth() + 1);
+  const lastMonthRecords = await prisma.monthlyRecord.findMany({
+    where: { year: currentYear, month: lastMonth },
+    select: { processId: true, stopCount: true },
+  });
+  const totalProcessCount = lastMonthRecords.length;
+  const noFailureProcessCount = lastMonthRecords.filter(
+    (r) => (r.stopCount ?? 0) === 0
   ).length;
   const noFailureProcessRatio =
     totalProcessCount > 0
@@ -94,5 +98,6 @@ export async function GET() {
     noFailureProcessCount,
     totalProcessCount,
     noFailureProcessRatio,
+    noFailureLastMonth: lastMonth,
   });
 }
