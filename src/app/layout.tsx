@@ -13,8 +13,22 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "설비 MTBF & MTTR 관리 시스템",
-  description: "공장 설비 신뢰성 지표 관리 대시보드",
+  metadataBase: new URL("https://mtbf-dashboard.vercel.app"),
+  title: "설비 신뢰성 관리 & 분석 플랫폼",
+  description: "MTBF/MTTR 기반 설비 상태 및 유지보수 분석 시스템",
+  openGraph: {
+    title: "설비 신뢰성 관리 & 분석 플랫폼",
+    description: "MTBF/MTTR 기반 설비 상태 및 유지보수 분석 시스템",
+    url: "https://mtbf-dashboard.vercel.app",
+    siteName: "DEERFOS",
+    locale: "ko_KR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "설비 신뢰성 관리 & 분석 플랫폼",
+    description: "MTBF/MTTR 기반 설비 상태 및 유지보수 분석 시스템",
+  },
 };
 
 export default function RootLayout({
@@ -24,7 +38,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="ko"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
