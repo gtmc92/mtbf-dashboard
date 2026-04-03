@@ -625,8 +625,9 @@ export default function StatusPage() {
 
         {/* 데이터 없음 */}
         {selectedFactory && !loading && !hasData && (
-          <div className="text-center text-gray-400 py-20">
-            선택한 조건에 해당하는 데이터가 없습니다.
+          <div className="flex flex-col items-center justify-center py-20 gap-2">
+            <p className="text-lg font-semibold text-gray-500">데이터 없음</p>
+            <p className="text-sm text-gray-400">해당 연도/공정 데이터가 입력되지 않았습니다.</p>
           </div>
         )}
       </div>
