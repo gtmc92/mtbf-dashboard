@@ -15,6 +15,7 @@ export async function GET(req: Request) {
     equipmentGroups,
     equipmentRepairTypeRows,
     yearRows,
+    topRepairRows,
   ] = await Promise.all([
     prisma.incidentRecord.aggregate({
       where,
@@ -50,6 +51,13 @@ export async function GET(req: Request) {
       select: { year: true },
       distinct: ["year"],
       orderBy: { year: "asc" },
+    }),
+    // 수리시간 기준 TOP10 (원문 개별 레코드)
+    prisma.repairTypeRecord.findMany({
+      where: { ...where, durationMin: { not: null } },
+      select: { equipment: true, durationMin: true, repairType: true, description: true },
+      orderBy: { durationMin: "desc" },
+      take: 10,
     }),
   ]);
 
@@ -90,5 +98,11 @@ export async function GET(req: Request) {
       totalDurationMin: g._sum.durationMin ?? 0,
     })),
     byEquipmentRepairType,
+    topRepairs: topRepairRows.map((r) => ({
+      equipment: r.equipment,
+      durationMin: r.durationMin ?? 0,
+      repairType: r.repairType ?? "미분류",
+      description: r.description ?? "",
+    })),
   });
 }

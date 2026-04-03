@@ -32,6 +32,13 @@ interface EquipmentStat {
   totalDurationMin: number;
 }
 
+interface TopRepairItem {
+  equipment: string;
+  durationMin: number;
+  repairType: string;
+  description: string;
+}
+
 interface FacilitySummary {
   years: number[];
   total: { incidentCount: number; totalDurationMin: number };
@@ -39,6 +46,7 @@ interface FacilitySummary {
   byManagementType: ManagementTypeStat[];
   topEquipment: EquipmentStat[];
   byEquipmentRepairType: Record<string, unknown>[];
+  topRepairs: TopRepairItem[];
 }
 
 function fmtMin(min: number) {
@@ -50,6 +58,13 @@ export default function FacilityPage() {
   const [data, setData] = useState<FacilitySummary | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const toggleExpand = (i: number) =>
+    setExpandedRows((prev) => {
+      const s = new Set(prev);
+      s.has(i) ? s.delete(i) : s.add(i);
+      return s;
+    });
 
   useEffect(() => {
     const url = selectedYear
@@ -248,6 +263,57 @@ export default function FacilityPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* 최장 수리 TOP 10 */}
+            {data.topRepairs.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">최장 수리 TOP 10</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data.topRepairs.map((r, i) => {
+                      const badgeColor =
+                        r.repairType === "정지수리" ? "bg-red-100 text-red-700" :
+                        r.repairType === "가동수리" ? "bg-green-100 text-green-700" :
+                        r.repairType === "보전수리" ? "bg-blue-100 text-blue-700" :
+                        r.repairType === "휴무수리" ? "bg-amber-100 text-amber-700" :
+                        "bg-gray-100 text-gray-600";
+                      const isExpanded = expandedRows.has(i);
+                      return (
+                        <div key={i} className="flex gap-3 rounded-lg border border-gray-100 bg-white px-4 py-3">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center mt-0.5">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="font-medium text-sm text-gray-800">{r.equipment}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeColor}`}>{r.repairType}</span>
+                              <span className="text-sm font-bold text-orange-500 ml-auto">{(r.durationMin / 60).toFixed(1)}h</span>
+                            </div>
+                            {r.description ? (
+                              <>
+                                <p className={`text-xs text-gray-600 whitespace-pre-wrap ${isExpanded ? "" : "line-clamp-2"}`}>
+                                  {r.description}
+                                </p>
+                                <button
+                                  className="text-xs text-blue-500 cursor-pointer mt-1 hover:underline"
+                                  onClick={() => toggleExpand(i)}
+                                >
+                                  {isExpanded ? "접기" : "더보기"}
+                                </button>
+                              </>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>
