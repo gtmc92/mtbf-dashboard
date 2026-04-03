@@ -108,13 +108,19 @@ function loadPTeamRows(csvPath: string): PTeamRow[] {
       console.warn(`  ⚠️  PTEAM row ${i + 2} 건너뜀 (필수값 없음)`);
       return;
     }
+    const operatingTime = parseNumber(cols[H["가동시간"]] ?? "");
+    const stopCountRaw = parseNumber(cols[H["정지횟수"]] ?? "");
+    // operatingTime과 stopCount가 모두 null이면 미입력(미래) 행 → skip
+    if (operatingTime === null && stopCountRaw === null) {
+      return;
+    }
     result.push({
       year,
       factory,
       process,
       month,
-      operatingTime: parseNumber(cols[H["가동시간"]] ?? ""),
-      stopCount: parseNumber(cols[H["정지횟수"]] ?? "") ?? 0,
+      operatingTime,
+      stopCount: stopCountRaw ?? 0,
       stopTime: parseNumber(cols[H["정지시간"]] ?? ""),
     });
   });
@@ -216,7 +222,7 @@ async function main() {
 
   // ══ PTEAM ══════════════════════════════════════════════════════════════════
   console.log("\n━━━ [1/3] DATA_PTEAM.csv (생산 KPI) ━━━");
-  const pteamRows = loadPTeamRows(path.join(__dirname, "DATA_PTEAM.csv"));
+  const pteamRows = loadPTeamRows("D:\\DATA_BASE\\DATA_PTEAM.csv");
   console.log(`📄 ${pteamRows.length}행 로드`);
 
   const factoryNames = [...new Set(pteamRows.map((r) => r.factory))];
@@ -260,14 +266,14 @@ async function main() {
 
   // ══ BASE ═══════════════════════════════════════════════════════════════════
   console.log("\n━━━ [2/3] DATA_BASE.csv (시설 사고/수리 원장) ━━━");
-  const baseRows = loadBaseRows(path.join(__dirname, "DATA_BASE.csv"));
+  const baseRows = loadBaseRows("D:\\DATA_BASE\\DATA_BASE.csv");
   console.log(`📄 ${baseRows.length}행 로드`);
   await prisma.incidentRecord.createMany({ data: baseRows });
   console.log(`✅ IncidentRecord ${baseRows.length}건 반영 완료`);
 
   // ══ TYPE ═══════════════════════════════════════════════════════════════════
   console.log("\n━━━ [3/3] DATA_TYPE.csv (수리유형 집계) ━━━");
-  const typeRows = loadTypeRows(path.join(__dirname, "DATA_TYPE.csv"));
+  const typeRows = loadTypeRows("D:\\DATA_BASE\\DATA_TYPE.csv");
   console.log(`📄 ${typeRows.length}행 로드`);
   await prisma.repairTypeRecord.createMany({ data: typeRows });
   console.log(`✅ RepairTypeRecord ${typeRows.length}건 반영 완료`);
