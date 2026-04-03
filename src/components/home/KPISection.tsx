@@ -11,9 +11,9 @@ export interface KpiData {
   reactiveRatio: number;
   topEquipment: string;
   topEquipmentRatio: number;
-  consecutiveNoFailureMonths: number;
-  lastFailureYear: number | null;
-  lastFailureMonth: number | null;
+  noFailureProcessCount: number;
+  totalProcessCount: number;
+  noFailureProcessRatio: number;
 }
 
 interface Props {
@@ -100,20 +100,21 @@ export function KPISection({ data, loading }: Props) {
           )}
         </div>
 
-        {/* 연속 무고장 */}
+        {/* 무고장 공정 비율 */}
         <div className="rounded-lg border p-4 bg-teal-50 border-teal-200">
-          <p className="text-xs text-gray-500 mb-1">연속 무고장</p>
+          <p className="text-xs text-gray-500 mb-1">무고장 공정 비율</p>
           {loading || !data ? (
             <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
           ) : (
-            <p className="text-2xl font-bold text-teal-700">
-              {data.consecutiveNoFailureMonths > 0
-                ? data.consecutiveNoFailureMonths
-                : "-"}
-              {data.consecutiveNoFailureMonths > 0 && (
-                <span className="text-sm font-normal ml-1">개월</span>
-              )}
-            </p>
+            <>
+              <p className="text-2xl font-bold text-teal-700">
+                {data.noFailureProcessRatio}
+                <span className="text-sm font-normal ml-1">%</span>
+              </p>
+              <p className="text-xs text-teal-600 mt-1">
+                {data.totalProcessCount}개 중 {data.noFailureProcessCount}개 공정 무고장
+              </p>
+            </>
           )}
         </div>
       </div>

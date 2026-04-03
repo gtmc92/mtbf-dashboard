@@ -47,21 +47,6 @@ export function AlertSection({ data }: Props) {
         운영 알림
       </h2>
 
-      {/* 연속 무고장 메시지 */}
-      {data && data.consecutiveNoFailureMonths > 0 && (
-        <div className="flex flex-col gap-1 rounded-lg border-l-4 border-teal-500 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-800 mb-2">
-          <div className="flex items-center gap-3">
-            <span>✅</span>
-            <span>최근 {data.consecutiveNoFailureMonths}개월 무고장 운영 유지</span>
-          </div>
-          {data.lastFailureYear && data.lastFailureMonth && (
-            <p className="text-xs text-teal-600 ml-7">
-              {data.lastFailureYear}년 {data.lastFailureMonth}월 이후 고장 미발생
-            </p>
-          )}
-        </div>
-      )}
-
       {!data ? null : alerts.length === 0 ? (
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
           <span>✅</span>

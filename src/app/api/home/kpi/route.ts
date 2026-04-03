@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const currentYear = new Date().getFullYear();
 
-  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, allStopRecords] =
+  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, processStopGroups] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
         where: { year: currentYear, stopCount: { gt: 0 } },
@@ -29,9 +29,11 @@ export async function GET() {
         orderBy: { _count: { id: "desc" } },
         take: 1,
       }),
-      prisma.monthlyRecord.findMany({
-        select: { year: true, month: true, stopCount: true },
-        orderBy: [{ year: "desc" }, { month: "desc" }],
+      // 공정별 정지횟수 합계 (무고장 공정 비율 계산용)
+      prisma.monthlyRecord.groupBy({
+        by: ["processId"],
+        where: { year: currentYear },
+        _sum: { stopCount: true },
       }),
     ]);
 
@@ -64,37 +66,15 @@ export async function GET() {
   const preventiveRatio =
     prTotal > 0 ? Math.round((preventiveCount / prTotal) * 1000) / 10 : 0;
 
-  // 연속 무고장 개월 수 계산
-  const monthlyStopMap = new Map<string, number>();
-  allStopRecords.forEach((r) => {
-    const key = `${r.year}-${r.month}`;
-    monthlyStopMap.set(key, (monthlyStopMap.get(key) ?? 0) + (r.stopCount ?? 0));
-  });
-
-  const now = new Date();
-  let cy = now.getFullYear(), cm = now.getMonth() + 1;
-  let consecutiveNoFailureMonths = 0;
-  let lastFailureYear: number | null = null;
-  let lastFailureMonth: number | null = null;
-
-  for (let i = 0; i < 120; i++) {
-    const key = `${cy}-${cm}`;
-    const stopCount = monthlyStopMap.get(key);
-    if (stopCount === undefined) {
-      cm--;
-      if (cm === 0) { cm = 12; cy--; }
-      continue;
-    }
-    if (stopCount === 0) {
-      consecutiveNoFailureMonths++;
-    } else {
-      lastFailureYear = cy;
-      lastFailureMonth = cm;
-      break;
-    }
-    cm--;
-    if (cm === 0) { cm = 12; cy--; }
-  }
+  // 무고장 공정 비율 계산
+  const totalProcessCount = processStopGroups.length;
+  const noFailureProcessCount = processStopGroups.filter(
+    (g) => (g._sum.stopCount ?? 0) === 0
+  ).length;
+  const noFailureProcessRatio =
+    totalProcessCount > 0
+      ? Math.round((noFailureProcessCount / totalProcessCount) * 1000) / 10
+      : 0;
 
   return NextResponse.json({
     avgMtbf: mtbfAgg._avg.mtbf != null
@@ -111,8 +91,8 @@ export async function GET() {
     reactiveRatio,
     topEquipment,
     topEquipmentRatio,
-    consecutiveNoFailureMonths,
-    lastFailureYear,
-    lastFailureMonth,
+    noFailureProcessCount,
+    totalProcessCount,
+    noFailureProcessRatio,
   });
 }
