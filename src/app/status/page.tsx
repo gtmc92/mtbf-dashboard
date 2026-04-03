@@ -31,8 +31,8 @@ interface ProcessGroup {
 
 interface MonthlyChartData {
   month: string;
-  mtbf: number;
-  mttr: number;
+  mtbf: number | null;
+  mttr: number | null;
   stopCount: number;
   stopTime: number;
 }
@@ -112,16 +112,16 @@ export default function StatusPage() {
     const totalStop = monthRecords.reduce((s, r) => s + (r.stopTime ?? 0), 0);
     return {
       month: `${m}월`,
-      mtbf: totalCnt > 0 ? totalOp / totalCnt : 0,
-      mttr: totalCnt > 0 ? totalStop / totalCnt : 0,
+      mtbf: totalCnt > 0 ? totalOp / totalCnt / 60 : null,
+      mttr: totalCnt > 0 ? totalStop / totalCnt / 60 : null,
       stopCount: totalCnt,
       stopTime: totalStop,
     };
   });
 
   // KPI 계산
-  const mtbfValues = monthlyData.filter((d) => d.mtbf > 0).map((d) => d.mtbf);
-  const mttrValues = monthlyData.filter((d) => d.mttr > 0).map((d) => d.mttr);
+  const mtbfValues = monthlyData.filter((d) => d.mtbf != null && d.mtbf > 0).map((d) => d.mtbf as number);
+  const mttrValues = monthlyData.filter((d) => d.mttr != null && d.mttr > 0).map((d) => d.mttr as number);
   const avgMtbf =
     mtbfValues.length > 0
       ? mtbfValues.reduce((s, v) => s + v, 0) / mtbfValues.length
@@ -154,6 +154,11 @@ export default function StatusPage() {
     return v.toFixed(decimals);
   };
 
+  const fmtH = (v: number | null | undefined, decimals = 1) => {
+    if (v === null || v === undefined) return "-";
+    return (v / 60).toFixed(decimals);
+  };
+
   const getTotal = (group: ProcessGroup) => {
     let totalOp = 0,
       totalStop = 0,
@@ -166,8 +171,8 @@ export default function StatusPage() {
         totalStopTime += r.stopTime ?? 0;
       }
     });
-    const mtbf = totalStop > 0 ? totalOp / totalStop : null;
-    const mttr = totalStop > 0 ? totalStopTime / totalStop : null;
+    const mtbf = totalStop > 0 ? totalOp / totalStop / 60 : null;
+    const mttr = totalStop > 0 ? totalStopTime / totalStop / 60 : null;
     return { totalOp, totalStop, totalStopTime, mtbf, mttr };
   };
 
@@ -177,6 +182,12 @@ export default function StatusPage() {
       : processes.find((p) => String(p.id) === selectedProcess)?.name ?? "";
 
   const hasData = records.length > 0;
+
+  // 상태 메시지: 선택 기간 무고장 여부
+  const hasAnyFailure = monthlyData.some((d) => d.stopCount > 0);
+  const statusMessage = hasAnyFailure
+    ? "고장 발생으로 MTBF 산출"
+    : "해당 기간 무고장 운영 유지";
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -297,7 +308,7 @@ export default function StatusPage() {
                   <p className="text-2xl font-bold text-blue-600">
                     {avgMtbf !== null ? avgMtbf.toFixed(1) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">분 (고장 간격)</p>
+                  <p className="text-xs text-gray-400 mt-1">h (고장 간격)</p>
                 </CardContent>
               </Card>
               <Card>
@@ -306,7 +317,7 @@ export default function StatusPage() {
                   <p className="text-2xl font-bold text-orange-500">
                     {avgMttr !== null ? avgMttr.toFixed(2) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">분 (수리 복구)</p>
+                  <p className="text-xs text-gray-400 mt-1">h (수리 복구)</p>
                 </CardContent>
               </Card>
               <Card>
@@ -329,6 +340,16 @@ export default function StatusPage() {
               </Card>
             </div>
 
+            {/* 상태 메시지 */}
+            <div className={`flex items-center gap-3 rounded-lg border-l-4 px-4 py-3 text-sm font-medium ${
+              hasAnyFailure
+                ? "border-amber-400 bg-amber-50 text-amber-800"
+                : "border-teal-500 bg-teal-50 text-teal-800"
+            }`}>
+              <span>{hasAnyFailure ? "⚠️" : "✅"}</span>
+              <span>{statusMessage}</span>
+            </div>
+
             {/* 차트 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
@@ -347,10 +368,11 @@ export default function StatusPage() {
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip
-                        formatter={(v) => [
-                          `${Number(v).toFixed(1)} 분`,
-                          "MTBF",
-                        ]}
+                        formatter={(v) =>
+                          v == null
+                            ? ["무고장 운영 / 산출 불가", "MTBF"]
+                            : [`${Number(v).toFixed(1)} h`, "MTBF"]
+                        }
                       />
                       <Bar dataKey="mtbf" fill="#4f81bd" radius={[2, 2, 0, 0]} />
                     </BarChart>
@@ -373,10 +395,11 @@ export default function StatusPage() {
                       <XAxis dataKey="month" tick={{ fontSize: 11 }} />
                       <YAxis tick={{ fontSize: 11 }} />
                       <Tooltip
-                        formatter={(v) => [
-                          `${Number(v).toFixed(2)} 분`,
-                          "MTTR",
-                        ]}
+                        formatter={(v) =>
+                          v == null
+                            ? ["무고장 운영 / 산출 불가", "MTTR"]
+                            : [`${Number(v).toFixed(2)} h`, "MTTR"]
+                        }
                       />
                       <Bar dataKey="mttr" fill="#f79646" radius={[2, 2, 0, 0]} />
                     </BarChart>
@@ -483,7 +506,7 @@ export default function StatusPage() {
                                 key={m}
                                 className="border border-gray-300 px-2 py-1 text-center font-medium text-amber-800"
                               >
-                                {fmt(group.records[m]?.mtbf, 1)}
+                                {fmtH(group.records[m]?.mtbf, 1)}
                               </td>
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">
@@ -499,7 +522,7 @@ export default function StatusPage() {
                                 key={m}
                                 className="border border-gray-300 px-2 py-1 text-center font-medium text-amber-800"
                               >
-                                {fmt(group.records[m]?.mttr, 2)}
+                                {fmtH(group.records[m]?.mttr, 2)}
                               </td>
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">

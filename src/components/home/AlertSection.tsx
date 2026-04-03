@@ -11,6 +11,16 @@ interface Alert {
   message: string;
 }
 
+function buildKeyMessage(data: KpiData): string {
+  if (data.reactiveRatio >= 60) {
+    return "Reactive 중심 운영 → 예방 정비 강화 필요";
+  } else if (data.preventiveRatio >= 60) {
+    return "Preventive 중심 운영 → 안정적 관리 상태";
+  } else {
+    return "Reactive → Preventive 전환 진행 중";
+  }
+}
+
 function buildAlerts(data: KpiData): Alert[] {
   const alerts: Alert[] = [];
   if (data.topEquipmentRatio >= 20) {
@@ -36,6 +46,22 @@ export function AlertSection({ data }: Props) {
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
         운영 알림
       </h2>
+
+      {/* 연속 무고장 메시지 */}
+      {data && data.consecutiveNoFailureMonths > 0 && (
+        <div className="flex flex-col gap-1 rounded-lg border-l-4 border-teal-500 bg-teal-50 px-4 py-3 text-sm font-medium text-teal-800 mb-2">
+          <div className="flex items-center gap-3">
+            <span>✅</span>
+            <span>최근 {data.consecutiveNoFailureMonths}개월 무고장 운영 유지</span>
+          </div>
+          {data.lastFailureYear && data.lastFailureMonth && (
+            <p className="text-xs text-teal-600 ml-7">
+              {data.lastFailureYear}년 {data.lastFailureMonth}월 이후 고장 미발생
+            </p>
+          )}
+        </div>
+      )}
+
       {!data ? null : alerts.length === 0 ? (
         <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-500">
           <span>✅</span>
@@ -56,6 +82,12 @@ export function AlertSection({ data }: Props) {
               <span>{alert.message}</span>
             </div>
           ))}
+        </div>
+      )}
+      {data && (
+        <div className="mt-3 flex items-center gap-3 rounded-lg border-l-4 border-blue-400 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+          <span>📋</span>
+          <span>{buildKeyMessage(data)}</span>
         </div>
       )}
     </div>

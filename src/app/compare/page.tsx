@@ -50,8 +50,8 @@ export default function ComparePage() {
     MONTHS.forEach((m) => {
       const { totalOp, totalCnt, totalStopTime } = monthMap[m];
       result[m] = {
-        mtbf: totalCnt > 0 ? Math.round((totalOp / totalCnt) * 10) / 10 : null,
-        mttr: totalCnt > 0 ? Math.round((totalStopTime / totalCnt) * 100) / 100 : null,
+        mtbf: totalCnt > 0 ? Math.round((totalOp / totalCnt / 60) * 10) / 10 : null,
+        mttr: totalCnt > 0 ? Math.round((totalStopTime / totalCnt / 60) * 100) / 100 : null,
       };
     });
     return result;
@@ -78,17 +78,23 @@ export default function ComparePage() {
 
   const chartData = MONTHS.map((m) => ({
     month: `${m}월`,
-    [`${baseYear}년`]: baseData[m]?.mtbf ?? 0,
-    [`${compareYear}년`]: compareData[m]?.mtbf ?? 0,
+    [`${baseYear}년`]: baseData[m]?.mtbf ?? null,
+    [`${compareYear}년`]: compareData[m]?.mtbf ?? null,
   }));
 
   const chartDataMttr = MONTHS.map((m) => ({
     month: `${m}월`,
-    [`${baseYear}년`]: baseData[m]?.mttr ?? 0,
-    [`${compareYear}년`]: compareData[m]?.mttr ?? 0,
+    [`${baseYear}년`]: baseData[m]?.mttr ?? null,
+    [`${compareYear}년`]: compareData[m]?.mttr ?? null,
   }));
 
-  const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
+  // 한쪽이 무고장(null)인 달이 있으면 비교 제외 안내 표시
+  const hasNullInMtbf = MONTHS.some(
+    (m) =>
+      (baseData[m]?.mtbf == null) !== (compareData[m]?.mtbf == null)
+  );
+
+  const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -108,7 +114,11 @@ export default function ComparePage() {
                 <label className="text-xs text-gray-500">공장</label>
                 <Select value={selectedFactory} onValueChange={(v) => { if (v) setSelectedFactory(v); }}>
                   <SelectTrigger className="w-28">
-                    <SelectValue placeholder="공장 선택" />
+                    <span className={selectedFactory ? "" : "text-muted-foreground"}>
+                      {selectedFactory
+                        ? (factories.find((f) => String(f.id) === selectedFactory)?.name ?? selectedFactory)
+                        : "공장 선택"}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {factories.map((f) => (
@@ -157,6 +167,12 @@ export default function ComparePage() {
 
             {/* 차트 탭 */}
             <TabsContent value="chart">
+              {hasNullInMtbf && (
+                <div className="mb-4 flex items-center gap-2 rounded-lg border border-teal-200 bg-teal-50 px-4 py-3 text-sm text-teal-700">
+                  <span>ℹ️</span>
+                  <span>일부 달은 무고장 운영으로 직접 비교 제외 (막대 없음 = 무고장)</span>
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader>
