@@ -156,6 +156,52 @@ export default function FacilityPage() {
               </Card>
             </div>
 
+            {/* 수리 유형 의미 설명 */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="rounded-lg border-l-4 border-red-400 bg-red-50 px-4 py-3">
+                <p className="text-sm font-semibold text-red-700">정지수리 증가</p>
+                <p className="text-xs text-red-600 mt-1">설비 신뢰성 저하 (고장 발생 증가)</p>
+              </div>
+              <div className="rounded-lg border-l-4 border-green-400 bg-green-50 px-4 py-3">
+                <p className="text-sm font-semibold text-green-700">가동수리 증가</p>
+                <p className="text-xs text-green-600 mt-1">잠재 고장 증가 (운영 중 불안정 상태)</p>
+              </div>
+              <div className="rounded-lg border-l-4 border-blue-400 bg-blue-50 px-4 py-3">
+                <p className="text-sm font-semibold text-blue-700">보전수리 증가</p>
+                <p className="text-xs text-blue-600 mt-1">예방보전 강화 (관리 상태 양호)</p>
+              </div>
+              <div className="rounded-lg border-l-4 border-amber-400 bg-amber-50 px-4 py-3">
+                <p className="text-sm font-semibold text-amber-700">휴무수리 증가</p>
+                <p className="text-xs text-amber-600 mt-1">예방보전 강화 (관리 상태 양호)</p>
+              </div>
+            </div>
+
+            {/* 핵심 메시지 */}
+            {(() => {
+              const total = (preventive?.count ?? 0) + (reactive?.count ?? 0);
+              if (total === 0) return null;
+              const rRatio = (reactive?.count ?? 0) / total;
+              const pRatio = (preventive?.count ?? 0) / total;
+              if (rRatio > 0.6) return (
+                <div className="rounded-lg bg-red-50 border border-red-200 px-5 py-4">
+                  <p className="text-sm font-bold text-red-700">⚠ Reactive 중심 운영 — 예방 정비 강화 필요</p>
+                  <p className="text-xs text-red-600 mt-1">정지·가동 수리 비중이 높습니다. 계획 예방보전(PM) 활동을 강화하여 설비 신뢰성을 개선하세요.</p>
+                </div>
+              );
+              if (pRatio > 0.6) return (
+                <div className="rounded-lg bg-green-50 border border-green-200 px-5 py-4">
+                  <p className="text-sm font-bold text-green-700">✓ Preventive 중심 운영 — 안정적 관리 상태</p>
+                  <p className="text-xs text-green-600 mt-1">예방·휴무 수리 비중이 높습니다. 현재의 예방보전 체계를 유지하세요.</p>
+                </div>
+              );
+              return (
+                <div className="rounded-lg bg-amber-50 border border-amber-200 px-5 py-4">
+                  <p className="text-sm font-bold text-amber-700">→ Reactive → Preventive 전환 진행 중</p>
+                  <p className="text-xs text-amber-600 mt-1">예방보전 비중이 증가하고 있습니다. 지속적인 PM 활동으로 Reactive 비중을 낮추세요.</p>
+                </div>
+              );
+            })()}
+
             {/* 차트 행 1: 수리유형 분포 + Preventive vs Reactive */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>

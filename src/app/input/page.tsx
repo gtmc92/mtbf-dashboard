@@ -11,7 +11,7 @@ import type { Factory, Process } from "@/types";
 
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1];
+const YEARS = [CURRENT_YEAR - 2, CURRENT_YEAR - 1, CURRENT_YEAR];
 
 interface MonthInput {
   operatingTime: string;
@@ -103,13 +103,13 @@ export default function InputPage() {
     const op = Number(d?.operatingTime);
     const cnt = Number(d?.stopCount);
     if (!op || !cnt) return "-";
-    return (op / cnt).toFixed(1);
+    return (op / cnt / 60).toFixed(1);
   };
   const calcMTTR = (d: MonthInput) => {
     const st = Number(d?.stopTime);
     const cnt = Number(d?.stopCount);
     if (!st || !cnt) return "-";
-    return (st / cnt).toFixed(2);
+    return (st / cnt / 60).toFixed(2);
   };
 
   return (

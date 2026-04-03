@@ -39,13 +39,13 @@ export async function POST(req: Request) {
     // MTBF = 가동시간 / 정지횟수 (정지횟수가 0이면 null)
     const mtbf =
       stopCount && stopCount > 0
-        ? Math.round((operatingTime / stopCount) * 10) / 10
+        ? Math.round((operatingTime / stopCount / 60) * 10) / 10
         : null;
 
     // MTTR = 정지시간 / 정지횟수 (정지횟수가 0이면 null)
     const mttr =
       stopCount && stopCount > 0
-        ? Math.round((stopTime / stopCount) * 100) / 100
+        ? Math.round((stopTime / stopCount / 60) * 100) / 100
         : null;
 
     const record = await prisma.monthlyRecord.upsert({

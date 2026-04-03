@@ -9,7 +9,7 @@ export async function GET() {
   const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, allStopRecords] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
-        where: { year: currentYear },
+        where: { year: currentYear, stopCount: { gt: 0 } },
         _avg: { mtbf: true, mttr: true },
       }),
       prisma.incidentRecord.aggregate({

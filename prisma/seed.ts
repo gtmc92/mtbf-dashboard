@@ -249,8 +249,8 @@ async function main() {
   let pteamInserted = 0;
   for (const row of uniqueRows) {
     const processId = processMap.get(`${row.factory}::${row.process}`)!;
-    const mtbf = row.stopCount > 0 && row.operatingTime !== null ? row.operatingTime / row.stopCount : 0;
-    const mttr = row.stopCount > 0 && row.stopTime !== null ? row.stopTime / row.stopCount : 0;
+    const mtbf = row.stopCount > 0 && row.operatingTime !== null ? row.operatingTime / row.stopCount : null;
+    const mttr = row.stopCount > 0 && row.stopTime !== null ? row.stopTime / row.stopCount : null;
     await prisma.monthlyRecord.create({
       data: { processId, year: row.year, month: row.month, operatingTime: row.operatingTime, stopCount: row.stopCount, stopTime: row.stopTime, mtbf, mttr },
     });
