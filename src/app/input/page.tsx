@@ -12,6 +12,7 @@ import type { Factory, Process } from "@/types";
 const MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const CURRENT_YEAR = new Date().getFullYear();
 
+
 interface MonthInput {
   operatingTime: string;
   stopCount: string;
@@ -107,6 +108,8 @@ export default function InputPage() {
     }
   };
 
+  const isReadOnly = Number(selectedYear) < CURRENT_YEAR;
+
   // MTBF/MTTR 미리보기 계산
   const calcMTBF = (d: MonthInput) => {
     const op = Number(d?.operatingTime);
@@ -195,12 +198,20 @@ export default function InputPage() {
           </CardContent>
         </Card>
 
+        {/* 읽기 전용 안내 배너 */}
+        {selectedProcess && isReadOnly && (
+          <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+            과거 연도 데이터는 조회만 가능합니다. 수정은 {CURRENT_YEAR}년 데이터만 가능합니다.
+          </div>
+        )}
+
         {/* 월별 입력 테이블 */}
         {selectedProcess && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
                 {selectedYear}년 월별 데이터 입력
+                {isReadOnly && <span className="ml-2 text-xs font-normal text-amber-600">(읽기 전용)</span>}
               </CardTitle>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -219,7 +230,7 @@ export default function InputPage() {
                   {/* 가동시간 */}
                   <tr className="bg-white">
                     <td className="border border-gray-300 px-3 py-1 font-medium text-gray-700 whitespace-nowrap">
-                      가동시간
+                      가동시간(분)
                     </td>
                     {MONTHS.map((m) => (
                       <td key={m} className="border border-gray-300 px-1 py-1">
@@ -228,6 +239,7 @@ export default function InputPage() {
                           className="h-7 text-xs text-center"
                           value={monthData[m]?.operatingTime ?? ""}
                           onChange={(e) => handleChange(m, "operatingTime", e.target.value)}
+                          disabled={isReadOnly}
                         />
                       </td>
                     ))}
@@ -244,6 +256,7 @@ export default function InputPage() {
                           className="h-7 text-xs text-center"
                           value={monthData[m]?.stopCount ?? ""}
                           onChange={(e) => handleChange(m, "stopCount", e.target.value)}
+                          disabled={isReadOnly}
                         />
                       </td>
                     ))}
@@ -251,7 +264,7 @@ export default function InputPage() {
                   {/* 정지시간 */}
                   <tr className="bg-white">
                     <td className="border border-gray-300 px-3 py-1 font-medium text-gray-700 whitespace-nowrap">
-                      정지시간
+                      정지시간(분)
                     </td>
                     {MONTHS.map((m) => (
                       <td key={m} className="border border-gray-300 px-1 py-1">
@@ -260,6 +273,7 @@ export default function InputPage() {
                           className="h-7 text-xs text-center"
                           value={monthData[m]?.stopTime ?? ""}
                           onChange={(e) => handleChange(m, "stopTime", e.target.value)}
+                          disabled={isReadOnly}
                         />
                       </td>
                     ))}
@@ -267,7 +281,7 @@ export default function InputPage() {
                   {/* MTBF 미리보기 */}
                   <tr className="bg-amber-50">
                     <td className="border border-gray-300 px-3 py-1 font-bold text-amber-700 whitespace-nowrap">
-                      MTBF
+                      MTBF(h)
                     </td>
                     {MONTHS.map((m) => (
                       <td key={m} className="border border-gray-300 px-2 py-1 text-center text-xs text-amber-700 font-medium">
@@ -278,7 +292,7 @@ export default function InputPage() {
                   {/* MTTR 미리보기 */}
                   <tr className="bg-amber-50">
                     <td className="border border-gray-300 px-3 py-1 font-bold text-amber-700 whitespace-nowrap">
-                      MTTR
+                      MTTR(h)
                     </td>
                     {MONTHS.map((m) => (
                       <td key={m} className="border border-gray-300 px-2 py-1 text-center text-xs text-amber-700 font-medium">
@@ -296,7 +310,7 @@ export default function InputPage() {
                           variant={savedMonths.includes(m) ? "default" : "outline"}
                           className="h-7 text-xs w-full"
                           onClick={() => handleSave(m)}
-                          disabled={saving}
+                          disabled={saving || isReadOnly}
                         >
                           {savedMonths.includes(m) ? "✓" : "저장"}
                         </Button>

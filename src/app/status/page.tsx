@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -189,6 +189,25 @@ export default function StatusPage() {
     ? "고장 발생으로 MTBF 산출"
     : "해당 기간 무고장 운영 유지";
 
+  // 연속 무고장 개월 수 계산 (데이터 있는 달만 기준, 뒤에서부터)
+  const noFailureStreak = (() => {
+    let streak = 0;
+    let lastFailureMonth: string | null = null;
+    for (let i = MONTHS.length - 1; i >= 0; i--) {
+      const m = MONTHS[i];
+      const hasData = records.some((r) => r.month === m);
+      if (!hasData) continue;
+      const d = monthlyData[i];
+      if (d.stopCount === 0) {
+        streak++;
+      } else {
+        lastFailureMonth = d.month;
+        break;
+      }
+    }
+    return { streak, lastFailureMonth };
+  })();
+
   return (
     <main className="min-h-screen bg-gray-50">
       {/* 헤더 */}
@@ -333,9 +352,9 @@ export default function StatusPage() {
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 mb-1">총 정지시간</p>
                   <p className="text-2xl font-bold text-gray-700">
-                    {totalStopTime.toLocaleString()}
+                    {(totalStopTime / 60).toFixed(1)}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">분</p>
+                  <p className="text-xs text-gray-400 mt-1">h (총 정지)</p>
                 </CardContent>
               </Card>
             </div>
@@ -349,6 +368,20 @@ export default function StatusPage() {
               <span>{hasAnyFailure ? "⚠️" : "✅"}</span>
               <span>{statusMessage}</span>
             </div>
+
+            {/* 연속 무고장 강조 */}
+            {noFailureStreak.streak > 0 && (
+              <div className="rounded-lg bg-teal-50 border border-teal-200 px-5 py-4">
+                <p className="text-sm font-bold text-teal-700">
+                  ✅ 최근 {noFailureStreak.streak}개월 연속 무고장 운영
+                </p>
+                {noFailureStreak.lastFailureMonth && (
+                  <p className="text-xs text-teal-600 mt-1">
+                    {noFailureStreak.lastFailureMonth} 고장 이후 무고장 유지 중
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* 차트 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -442,8 +475,8 @@ export default function StatusPage() {
                     {processGroups.map((group) => {
                       const totals = getTotal(group);
                       return (
-                        <>
-                          <tr key={`${group.processId}-op`} className="bg-white">
+                        <React.Fragment key={group.processId}>
+                          <tr className="bg-white">
                             <td
                               rowSpan={5}
                               className="border border-gray-300 px-3 py-2 font-medium text-gray-700 align-middle text-center"
@@ -451,7 +484,7 @@ export default function StatusPage() {
                               {group.processName}
                             </td>
                             <td className="border border-gray-300 px-3 py-1 text-gray-600">
-                              가동시간
+                              가동시간(분)
                             </td>
                             {MONTHS.map((m) => (
                               <td
@@ -465,7 +498,7 @@ export default function StatusPage() {
                               {totals.totalOp.toLocaleString()}
                             </td>
                           </tr>
-                          <tr key={`${group.processId}-cnt`} className="bg-gray-50">
+                          <tr className="bg-gray-50">
                             <td className="border border-gray-300 px-3 py-1 text-gray-600">
                               정지횟수
                             </td>
@@ -481,9 +514,9 @@ export default function StatusPage() {
                               {totals.totalStop}
                             </td>
                           </tr>
-                          <tr key={`${group.processId}-st`} className="bg-white">
+                          <tr className="bg-white">
                             <td className="border border-gray-300 px-3 py-1 text-gray-600">
-                              정지시간
+                              정지시간(분)
                             </td>
                             {MONTHS.map((m) => (
                               <td
@@ -497,39 +530,47 @@ export default function StatusPage() {
                               {totals.totalStopTime}
                             </td>
                           </tr>
-                          <tr key={`${group.processId}-mtbf`} className="bg-amber-50">
+                          <tr className="bg-amber-50">
                             <td className="border border-gray-300 px-3 py-1 font-bold text-amber-800">
-                              MTBF
+                              MTBF(h)
                             </td>
                             {MONTHS.map((m) => (
                               <td
                                 key={m}
                                 className="border border-gray-300 px-2 py-1 text-center font-medium text-amber-800"
                               >
-                                {fmtH(group.records[m]?.mtbf, 1)}
+                                {(() => {
+                                  const rec = group.records[m];
+                                  if (!rec?.stopCount || rec.stopCount === 0) return "-";
+                                  return ((rec.operatingTime ?? 0) / rec.stopCount / 60).toFixed(1);
+                                })()}
                               </td>
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">
                               {fmt(totals.mtbf, 1)}
                             </td>
                           </tr>
-                          <tr key={`${group.processId}-mttr`} className="bg-amber-50">
+                          <tr className="bg-amber-50">
                             <td className="border border-gray-300 px-3 py-1 font-bold text-amber-800">
-                              MTTR
+                              MTTR(h)
                             </td>
                             {MONTHS.map((m) => (
                               <td
                                 key={m}
                                 className="border border-gray-300 px-2 py-1 text-center font-medium text-amber-800"
                               >
-                                {fmtH(group.records[m]?.mttr, 2)}
+                                {(() => {
+                                  const rec = group.records[m];
+                                  if (!rec?.stopCount || rec.stopCount === 0) return "-";
+                                  return ((rec.stopTime ?? 0) / rec.stopCount / 60).toFixed(2);
+                                })()}
                               </td>
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">
                               {fmt(totals.mttr, 2)}
                             </td>
                           </tr>
-                        </>
+                        </React.Fragment>
                       );
                     })}
                   </tbody>
