@@ -35,6 +35,7 @@ interface MonthlyChartData {
   mttr: number | null;
   stopCount: number;
   stopTime: number;
+  operatingTime: number;
 }
 
 export default function StatusPage() {
@@ -116,6 +117,7 @@ export default function StatusPage() {
       mttr: totalCnt > 0 ? totalStop / totalCnt / 60 : null,
       stopCount: totalCnt,
       stopTime: totalStop,
+      operatingTime: totalOp,
     };
   });
 
@@ -183,16 +185,27 @@ export default function StatusPage() {
 
   const hasData = records.length > 0;
 
-  // 상태 메시지: 선택 기간 무고장 여부
-  const hasAnyFailure = monthlyData.some((d) => d.stopCount > 0);
-  const statusMessage = hasAnyFailure
-    ? "고장 발생으로 MTBF 산출"
-    : "해당 기간 무고장 운영 유지";
+  // 상태 메시지: 조건 분기
+  const statusConfig = (() => {
+    if (totalStopCount === 0) return {
+      icon: "✅", msg: "무고장 운영 중",
+      border: "border-teal-500", bg: "bg-teal-50", text: "text-teal-800",
+    };
+    if (totalStopCount < 3) return {
+      icon: "⚠️", msg: "해석 주의 — 정지 건수가 적어 MTBF/MTTR 평균값의 신뢰도가 낮습니다",
+      border: "border-amber-400", bg: "bg-amber-50", text: "text-amber-800",
+    };
+    return {
+      icon: "⚠️", msg: "고장 발생으로 MTBF 산출",
+      border: "border-amber-400", bg: "bg-amber-50", text: "text-amber-800",
+    };
+  })();
 
-  // 연속 무고장 개월 수 계산 (데이터 있는 달만 기준, 뒤에서부터)
+  // 연속 무고장 개월 수 + 누적 가동시간 계산
   const noFailureStreak = (() => {
     let streak = 0;
     let lastFailureMonth: string | null = null;
+    let cumulativeOpMin = 0;
     for (let i = MONTHS.length - 1; i >= 0; i--) {
       const m = MONTHS[i];
       const hasData = records.some((r) => r.month === m);
@@ -200,12 +213,17 @@ export default function StatusPage() {
       const d = monthlyData[i];
       if (d.stopCount === 0) {
         streak++;
+        cumulativeOpMin += d.operatingTime;
       } else {
         lastFailureMonth = d.month;
         break;
       }
     }
-    return { streak, lastFailureMonth };
+    return {
+      streak,
+      lastFailureMonth,
+      cumulativeOpHours: Math.round((cumulativeOpMin / 60) * 10) / 10,
+    };
   })();
 
   return (
@@ -327,7 +345,7 @@ export default function StatusPage() {
                   <p className="text-2xl font-bold text-blue-600">
                     {avgMtbf !== null ? avgMtbf.toFixed(1) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">h (고장 간격)</p>
+                  <p className="text-xs text-gray-400 mt-1">h · 고장 간 평균 운전시간</p>
                 </CardContent>
               </Card>
               <Card>
@@ -336,7 +354,9 @@ export default function StatusPage() {
                   <p className="text-2xl font-bold text-orange-500">
                     {avgMttr !== null ? avgMttr.toFixed(2) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">h (수리 복구)</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    h · 총 {totalStopCount}건 기준
+                  </p>
                 </CardContent>
               </Card>
               <Card>
@@ -359,29 +379,52 @@ export default function StatusPage() {
               </Card>
             </div>
 
-            {/* 상태 메시지 */}
-            <div className={`flex items-center gap-3 rounded-lg border-l-4 px-4 py-3 text-sm font-medium ${
-              hasAnyFailure
-                ? "border-amber-400 bg-amber-50 text-amber-800"
-                : "border-teal-500 bg-teal-50 text-teal-800"
-            }`}>
-              <span>{hasAnyFailure ? "⚠️" : "✅"}</span>
-              <span>{statusMessage}</span>
+            {/* 상태 메시지 (조건 분기) */}
+            <div className={`flex items-center gap-3 rounded-lg border-l-4 px-4 py-3 text-sm font-medium ${statusConfig.border} ${statusConfig.bg} ${statusConfig.text}`}>
+              <span>{statusConfig.icon}</span>
+              <span>{statusConfig.msg}</span>
             </div>
 
-            {/* 연속 무고장 강조 */}
+            {/* 연속 무고장 KPI 카드 */}
             {noFailureStreak.streak > 0 && (
               <div className="rounded-lg bg-teal-50 border border-teal-200 px-5 py-4">
-                <p className="text-sm font-bold text-teal-700">
-                  ✅ 최근 {noFailureStreak.streak}개월 연속 무고장 운영
-                </p>
-                {noFailureStreak.lastFailureMonth && (
-                  <p className="text-xs text-teal-600 mt-1">
-                    {noFailureStreak.lastFailureMonth} 고장 이후 무고장 유지 중
-                  </p>
-                )}
+                <p className="text-sm font-bold text-teal-700 mb-3">✅ 연속 무고장 운영</p>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <p className="text-xs text-teal-600 mb-1">연속 무고장</p>
+                    <p className="text-xl font-bold text-teal-700">
+                      {noFailureStreak.streak}
+                      <span className="text-sm font-normal ml-1">개월</span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-600 mb-1">최근 고장 이후 경과</p>
+                    <p className="text-xl font-bold text-teal-700">
+                      {noFailureStreak.streak}
+                      <span className="text-sm font-normal ml-1">개월</span>
+                    </p>
+                    {noFailureStreak.lastFailureMonth && (
+                      <p className="text-xs text-teal-500 mt-0.5">{noFailureStreak.lastFailureMonth} 이후</p>
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-xs text-teal-600 mb-1">누적 가동시간</p>
+                    <p className="text-xl font-bold text-teal-700">
+                      {noFailureStreak.cumulativeOpHours.toLocaleString()}
+                      <span className="text-sm font-normal ml-1">h</span>
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
+
+            {/* KPI 해석 가이드 */}
+            <div className="rounded-lg border border-gray-200 bg-gray-50 px-5 py-4 text-xs text-gray-600 space-y-1.5">
+              <p className="font-semibold text-gray-700 mb-2">📖 KPI 해석 가이드</p>
+              <p><span className="font-medium text-blue-600">MTBF</span>: 고장 간 평균 가동시간 — 값이 클수록 설비 신뢰성 높음</p>
+              <p><span className="font-medium text-orange-500">MTTR</span>: 고장 건당 평균 수리시간 — 값이 작을수록 복구 빠름 (총 정지횟수 기준)</p>
+              <p className="text-gray-400">※ 정지횟수 0인 달은 MTBF/MTTR 산출에서 제외됩니다 (고장 없는 기간은 별도 누적 가동시간으로 확인)</p>
+            </div>
 
             {/* 차트 */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
