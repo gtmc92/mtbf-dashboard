@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const STORAGE_KEY = "deerfos_onboarding_done";
+const STORAGE_KEY = "deerfos_onboarding_v2";
 
 const MENU_ITEMS = [
   { icon: "📝", title: "데이터 관리", desc: "설비 운영 데이터 입력" },

@@ -76,6 +76,7 @@ export default function FacilityPage() {
   const reactive = data?.byManagementType.find((m) =>
     m.managementType?.toLowerCase().includes("reactive")
   );
+  const prTotal = (preventive?.count ?? 0) + (reactive?.count ?? 0);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -144,14 +145,20 @@ export default function FacilityPage() {
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 mb-1">Preventive</p>
                   <p className="text-2xl font-bold text-green-600">{preventive?.count.toLocaleString() ?? 0}</p>
-                  <p className="text-xs text-gray-400 mt-1">{fmtMin(preventive?.durationMin ?? 0)}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {fmtMin(preventive?.durationMin ?? 0)}
+                    {prTotal > 0 && ` · ${(((preventive?.count ?? 0) / prTotal) * 100).toFixed(1)}%`}
+                  </p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 mb-1">Reactive</p>
                   <p className="text-2xl font-bold text-red-500">{reactive?.count.toLocaleString() ?? 0}</p>
-                  <p className="text-xs text-gray-400 mt-1">{fmtMin(reactive?.durationMin ?? 0)}</p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {fmtMin(reactive?.durationMin ?? 0)}
+                    {prTotal > 0 && ` · ${(((reactive?.count ?? 0) / prTotal) * 100).toFixed(1)}%`}
+                  </p>
                 </CardContent>
               </Card>
             </div>
