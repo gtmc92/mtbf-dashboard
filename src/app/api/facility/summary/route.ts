@@ -52,9 +52,9 @@ export async function GET(req: Request) {
       distinct: ["year"],
       orderBy: { year: "asc" },
     }),
-    // 수리시간 기준 TOP10 (원문 개별 레코드)
+    // 정지수리 기준 수리시간 TOP10
     prisma.repairTypeRecord.findMany({
-      where: { ...where, durationMin: { not: null } },
+      where: { ...where, repairType: "정지수리", durationMin: { not: null } },
       select: { equipment: true, durationMin: true, repairType: true, description: true },
       orderBy: { durationMin: "desc" },
       take: 10,
