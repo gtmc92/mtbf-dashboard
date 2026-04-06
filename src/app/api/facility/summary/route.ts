@@ -3,10 +3,20 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+// 시설현황 페이지에서 표시할 공장 목록. 확장 시 배열에 추가.
+const FACILITY_VISIBLE_FACTORIES = ["F2"];
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const yearParam = searchParams.get("year");
-  const where = yearParam ? { year: Number(yearParam) } : {};
+
+  const equipmentFilter =
+    FACILITY_VISIBLE_FACTORIES.length === 1
+      ? { equipment: { startsWith: `${FACILITY_VISIBLE_FACTORIES[0]}_` } }
+      : { OR: FACILITY_VISIBLE_FACTORIES.map((f) => ({ equipment: { startsWith: `${f}_` } })) };
+
+  const yearFilter = yearParam ? { year: Number(yearParam) } : {};
+  const where = { ...yearFilter, ...equipmentFilter };
 
   const [
     totalAgg,
