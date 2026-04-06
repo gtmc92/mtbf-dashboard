@@ -34,7 +34,7 @@ interface EquipmentStat {
 
 interface TopRepairItem {
   equipment: string;
-  durationMin: number;
+  repairTime: number;
   repairType: string;
   description: string;
 }
@@ -288,11 +288,10 @@ export default function FacilityPage() {
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="font-medium text-sm text-gray-800">{r.equipment}</span>
                               <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">정지수리</span>
-                              <span className="text-sm font-bold text-orange-500 ml-auto">{(r.durationMin / 60).toFixed(1)}h</span>
                             </div>
                             {r.description ? (
                               <>
-                                <p className="text-xs text-gray-600">{displayText}</p>
+                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
                                 {isLong && (
                                   <button
                                     className="text-xs text-blue-500 mt-1 hover:underline"

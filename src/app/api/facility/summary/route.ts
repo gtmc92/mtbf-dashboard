@@ -63,11 +63,11 @@ export async function GET(req: Request) {
       distinct: ["year"],
       orderBy: { year: "asc" },
     }),
-    // 정지수리 기준 수리시간 TOP10
+    // 정지수리 기준 수리시간(인원 가중치) TOP10
     prisma.repairTypeRecord.findMany({
-      where: { ...where, repairType: "정지수리", durationMin: { not: null } },
-      select: { equipment: true, durationMin: true, repairType: true, description: true },
-      orderBy: { durationMin: "desc" },
+      where: { ...where, repairType: "정지수리", repairTime: { not: null } },
+      select: { equipment: true, repairTime: true, repairType: true, description: true },
+      orderBy: { repairTime: "desc" },
       take: 10,
     }),
   ]);
@@ -111,7 +111,7 @@ export async function GET(req: Request) {
     byEquipmentRepairType,
     topRepairs: topRepairRows.map((r) => ({
       equipment: r.equipment,
-      durationMin: r.durationMin ?? 0,
+      repairTime: r.repairTime ?? 0,
       repairType: r.repairType ?? "미분류",
       description: r.description ?? "",
     })),
