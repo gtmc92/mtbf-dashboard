@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 
-const STORAGE_KEY = "deerfos_onboarding_v2";
+const STORAGE_KEY = "onboardingCompletedAt";
+const ONBOARDING_TTL_MS = 10 * 60 * 1000; // 10분
 
 const MENU_ITEMS = [
   { icon: "📝", title: "데이터 관리", desc: "설비 운영 데이터 입력" },
@@ -13,22 +14,22 @@ const MENU_ITEMS = [
 
 export function OnboardingModal() {
   const [open, setOpen] = useState(false);
-  const [neverShow, setNeverShow] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!localStorage.getItem(STORAGE_KEY)) {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved || Date.now() - Number(saved) >= ONBOARDING_TTL_MS) {
       setOpen(true);
     }
+    setLoaded(true);
   }, []);
 
   const close = () => {
-    if (neverShow) {
-      localStorage.setItem(STORAGE_KEY, "1");
-    }
+    localStorage.setItem(STORAGE_KEY, Date.now().toString());
     setOpen(false);
   };
 
-  if (!open) return null;
+  if (!loaded || !open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -59,17 +60,6 @@ export function OnboardingModal() {
             </div>
           ))}
         </div>
-
-        {/* 다시 보지 않기 */}
-        <label className="flex items-center gap-2 text-xs text-gray-500 mb-4 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={neverShow}
-            onChange={(e) => setNeverShow(e.target.checked)}
-            className="accent-green-600"
-          />
-          다시 보지 않기
-        </label>
 
         {/* 버튼 */}
         <div className="flex justify-end gap-2">
