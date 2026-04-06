@@ -64,8 +64,15 @@ export async function GET(req: Request) {
       orderBy: { year: "asc" },
     }),
     // 정지수리 기준 수리시간(인원 가중치) TOP10 — repairTime 없는 경우 durationMin으로 fallback
+    // AND로 묶어야 equipment OR 필터가 덮어쓰이지 않음
     prisma.repairTypeRecord.findMany({
-      where: { ...where, repairType: "정지수리", OR: [{ repairTime: { not: null } }, { durationMin: { not: null } }] },
+      where: {
+        AND: [
+          where,
+          { repairType: "정지수리" },
+          { OR: [{ repairTime: { not: null } }, { durationMin: { not: null } }] },
+        ],
+      },
       select: { equipment: true, repairTime: true, durationMin: true, repairType: true, description: true },
     }),
   ]);
