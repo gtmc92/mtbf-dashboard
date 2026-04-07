@@ -9,8 +9,8 @@ export async function GET() {
   const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, lastMonthAgg] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
-        where: { year: currentYear, stopCount: { gt: 0 } },
-        _avg: { mtbf: true, mttr: true },
+        where: { year: currentYear },
+        _sum: { operatingTime: true, stopCount: true, stopTime: true },
       }),
       prisma.incidentRecord.aggregate({
         where: { year: currentYear },
@@ -80,13 +80,15 @@ export async function GET() {
       ? Math.round((noFailureProcessCount / totalProcessCount) * 1000) / 10
       : 0;
 
+  const ytdOp = mtbfAgg._sum.operatingTime ?? 0;
+  const ytdCnt = mtbfAgg._sum.stopCount ?? 0;
+  const ytdStop = mtbfAgg._sum.stopTime ?? 0;
+  const ytdMtbf = ytdCnt > 0 ? Math.round((ytdOp / ytdCnt / 60) * 10) / 10 : null;
+  const ytdMttr = ytdCnt > 0 ? Math.round((ytdStop / ytdCnt / 60) * 100) / 100 : null;
+
   return NextResponse.json({
-    avgMtbf: mtbfAgg._avg.mtbf != null
-      ? Math.round((mtbfAgg._avg.mtbf / 60) * 10) / 10
-      : null,
-    avgMttr: mtbfAgg._avg.mttr != null
-      ? Math.round((mtbfAgg._avg.mttr / 60) * 10) / 10
-      : null,
+    ytdMtbf,
+    ytdMttr,
     totalIncidents,
     totalRepairHours,
     preventiveCount,

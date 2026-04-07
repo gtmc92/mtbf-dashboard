@@ -121,19 +121,12 @@ export default function StatusPage() {
     };
   });
 
-  // KPI 계산
-  const mtbfValues = monthlyData.filter((d) => d.mtbf != null && d.mtbf > 0).map((d) => d.mtbf as number);
-  const mttrValues = monthlyData.filter((d) => d.mttr != null && d.mttr > 0).map((d) => d.mttr as number);
-  const avgMtbf =
-    mtbfValues.length > 0
-      ? mtbfValues.reduce((s, v) => s + v, 0) / mtbfValues.length
-      : null;
-  const avgMttr =
-    mttrValues.length > 0
-      ? mttrValues.reduce((s, v) => s + v, 0) / mttrValues.length
-      : null;
-  const totalStopCount = monthlyData.reduce((s, d) => s + d.stopCount, 0);
-  const totalStopTime = monthlyData.reduce((s, d) => s + d.stopTime, 0);
+  // KPI 계산 (누적 기준: Σ가동시간 / Σ정지횟수)
+  const totalOp = records.reduce((s, r) => s + (r.operatingTime ?? 0), 0);
+  const totalStopCount = records.reduce((s, r) => s + (r.stopCount ?? 0), 0);
+  const totalStopTime = records.reduce((s, r) => s + (r.stopTime ?? 0), 0);
+  const ytdMtbf = totalStopCount > 0 ? totalOp / totalStopCount / 60 : null;
+  const ytdMttr = totalStopCount > 0 ? totalStopTime / totalStopCount / 60 : null;
 
   // 테이블용 공정 그룹화
   const processGroups: ProcessGroup[] = (() => {
@@ -341,18 +334,18 @@ export default function StatusPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">평균 MTBF</p>
+                  <p className="text-xs text-gray-500 mb-1">누적 MTBF</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {avgMtbf !== null ? avgMtbf.toFixed(1) : "-"}
+                    {ytdMtbf !== null ? ytdMtbf.toFixed(1) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">h · 고장 간 평균 운전시간</p>
+                  <p className="text-xs text-gray-400 mt-1">h · 연간 누적 고장 간 평균 가동시간</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">평균 MTTR</p>
+                  <p className="text-xs text-gray-500 mb-1">누적 MTTR</p>
                   <p className="text-2xl font-bold text-orange-500">
-                    {avgMttr !== null ? avgMttr.toFixed(2) : "-"}
+                    {ytdMttr !== null ? ytdMttr.toFixed(2) : "-"}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
                     h · 총 {totalStopCount}건 기준
@@ -510,7 +503,7 @@ export default function StatusPage() {
                         </th>
                       ))}
                       <th className="border border-gray-300 px-3 py-2 text-center bg-amber-500">
-                        합계
+                        누적
                       </th>
                     </tr>
                   </thead>
@@ -575,7 +568,7 @@ export default function StatusPage() {
                           </tr>
                           <tr className="bg-amber-50">
                             <td className="border border-gray-300 px-3 py-1 font-bold text-amber-800">
-                              MTBF(h)
+                              MTBF(h) · 월별
                             </td>
                             {MONTHS.map((m) => (
                               <td
@@ -595,7 +588,7 @@ export default function StatusPage() {
                           </tr>
                           <tr className="bg-amber-50">
                             <td className="border border-gray-300 px-3 py-1 font-bold text-amber-800">
-                              MTTR(h)
+                              MTTR(h) · 월별
                             </td>
                             {MONTHS.map((m) => (
                               <td

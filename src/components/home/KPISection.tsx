@@ -1,8 +1,8 @@
 "use client";
 
 export interface KpiData {
-  avgMtbf: number | null;
-  avgMttr: number | null;
+  ytdMtbf: number | null;
+  ytdMttr: number | null;
   totalIncidents: number;
   totalRepairHours: number;
   preventiveCount: number;
@@ -32,34 +32,36 @@ export function KPISection({ data, loading }: Props) {
         KPI 요약 · {new Date().getFullYear()}년 기준
       </h2>
       <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        {/* 평균 MTBF */}
+        {/* 누적 MTBF */}
         <div className="rounded-lg border p-4 bg-blue-50 border-blue-200">
-          <p className="text-xs text-gray-500 mb-1">평균 MTBF</p>
+          <p className="text-xs text-gray-500 mb-1">누적 MTBF</p>
           {loading || !data ? (
             <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
           ) : (
             <p className="text-2xl font-bold text-blue-700">
-              {fmtMtbf(data.avgMtbf)}
-              {data.avgMtbf != null && (
+              {fmtMtbf(data.ytdMtbf)}
+              {data.ytdMtbf != null && (
                 <span className="text-sm font-normal ml-1">h</span>
               )}
             </p>
           )}
+          <p className="text-xs text-blue-400 mt-1">연초~현재 누적 기준</p>
         </div>
 
-        {/* 평균 MTTR */}
+        {/* 누적 MTTR */}
         <div className="rounded-lg border p-4 bg-orange-50 border-orange-200">
-          <p className="text-xs text-gray-500 mb-1">평균 MTTR</p>
+          <p className="text-xs text-gray-500 mb-1">누적 MTTR</p>
           {loading || !data ? (
             <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
           ) : (
             <p className="text-2xl font-bold text-orange-700">
-              {fmtMtbf(data.avgMttr)}
-              {data.avgMttr != null && (
+              {fmtMtbf(data.ytdMttr)}
+              {data.ytdMttr != null && (
                 <span className="text-sm font-normal ml-1">h</span>
               )}
             </p>
           )}
+          <p className="text-xs text-orange-400 mt-1">연초~현재 누적 기준</p>
         </div>
 
         {/* 총 수리 건수 */}
