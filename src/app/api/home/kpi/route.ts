@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const currentYear = new Date().getFullYear();
 
-  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, lastMonthAgg] =
+  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, lastMonthAgg, rollingAgg] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
         where: { year: currentYear },
@@ -33,6 +33,10 @@ export async function GET() {
       prisma.monthlyRecord.aggregate({
         where: { year: currentYear },
         _max: { month: true },
+      }),
+      // 전체 연도 rolling 집계
+      prisma.monthlyRecord.aggregate({
+        _sum: { operatingTime: true, stopCount: true, stopTime: true },
       }),
     ]);
 
@@ -86,9 +90,17 @@ export async function GET() {
   const ytdMtbf = ytdCnt > 0 ? Math.round((ytdOp / ytdCnt / 60) * 10) / 10 : null;
   const ytdMttr = ytdCnt > 0 ? Math.round((ytdStop / ytdCnt / 60) * 100) / 100 : null;
 
+  const rollingOp   = rollingAgg._sum.operatingTime ?? 0;
+  const rollingCnt  = rollingAgg._sum.stopCount ?? 0;
+  const rollingStop = rollingAgg._sum.stopTime ?? 0;
+  const rollingMtbf = rollingCnt > 0 ? Math.round((rollingOp / rollingCnt / 60) * 10) / 10 : null;
+  const rollingMttr = rollingCnt > 0 ? Math.round((rollingStop / rollingCnt / 60) * 100) / 100 : null;
+
   return NextResponse.json({
     ytdMtbf,
     ytdMttr,
+    rollingMtbf,
+    rollingMttr,
     totalIncidents,
     totalRepairHours,
     preventiveCount,

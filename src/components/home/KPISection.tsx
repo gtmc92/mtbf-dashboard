@@ -3,6 +3,8 @@
 export interface KpiData {
   ytdMtbf: number | null;
   ytdMttr: number | null;
+  rollingMtbf: number | null;
+  rollingMttr: number | null;
   totalIncidents: number;
   totalRepairHours: number;
   preventiveCount: number;
@@ -29,12 +31,12 @@ export function KPISection({ data, loading }: Props) {
   return (
     <div className="mt-10">
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
-        KPI 요약 · {new Date().getFullYear()}년 기준
+        KPI 요약 · {new Date().getFullYear()}년 연도누적 / 연속누적
       </h2>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
-        {/* 누적 MTBF */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {/* 연도누적 MTBF */}
         <div className="rounded-lg border p-4 bg-blue-50 border-blue-200">
-          <p className="text-xs text-gray-500 mb-1">누적 MTBF</p>
+          <p className="text-xs text-gray-500 mb-1">연도누적 MTBF</p>
           {loading || !data ? (
             <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
           ) : (
@@ -48,9 +50,9 @@ export function KPISection({ data, loading }: Props) {
           <p className="text-xs text-blue-400 mt-1">연초~현재 누적 기준</p>
         </div>
 
-        {/* 누적 MTTR */}
+        {/* 연도누적 MTTR */}
         <div className="rounded-lg border p-4 bg-orange-50 border-orange-200">
-          <p className="text-xs text-gray-500 mb-1">누적 MTTR</p>
+          <p className="text-xs text-gray-500 mb-1">연도누적 MTTR</p>
           {loading || !data ? (
             <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
           ) : (
@@ -62,6 +64,38 @@ export function KPISection({ data, loading }: Props) {
             </p>
           )}
           <p className="text-xs text-orange-400 mt-1">연초~현재 누적 기준</p>
+        </div>
+
+        {/* 연속누적 MTBF */}
+        <div className="rounded-lg border p-4 bg-indigo-50 border-indigo-200">
+          <p className="text-xs text-gray-500 mb-1">연속누적 MTBF</p>
+          {loading || !data ? (
+            <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+          ) : (
+            <p className="text-2xl font-bold text-indigo-700">
+              {fmtMtbf(data.rollingMtbf)}
+              {data.rollingMtbf != null && (
+                <span className="text-sm font-normal ml-1">h</span>
+              )}
+            </p>
+          )}
+          <p className="text-xs text-indigo-400 mt-1">전체 기간 연속 누적</p>
+        </div>
+
+        {/* 연속누적 MTTR */}
+        <div className="rounded-lg border p-4 bg-rose-50 border-rose-200">
+          <p className="text-xs text-gray-500 mb-1">연속누적 MTTR</p>
+          {loading || !data ? (
+            <div className="h-7 w-16 bg-gray-200 animate-pulse rounded mt-1" />
+          ) : (
+            <p className="text-2xl font-bold text-rose-700">
+              {fmtMtbf(data.rollingMttr)}
+              {data.rollingMttr != null && (
+                <span className="text-sm font-normal ml-1">h</span>
+              )}
+            </p>
+          )}
+          <p className="text-xs text-rose-400 mt-1">전체 기간 연속 누적</p>
         </div>
 
         {/* 총 수리 건수 */}

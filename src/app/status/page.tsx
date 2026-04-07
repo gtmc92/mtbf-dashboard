@@ -46,6 +46,7 @@ export default function StatusPage() {
   const [selectedFactory, setSelectedFactory] = useState<string>("");
   const [selectedProcess, setSelectedProcess] = useState<string>("all");
   const [records, setRecords] = useState<MonthlyRecord[]>([]);
+  const [rollingRecords, setRollingRecords] = useState<MonthlyRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [factoryName, setFactoryName] = useState("");
 
@@ -89,17 +90,20 @@ export default function StatusPage() {
   useEffect(() => {
     if (!selectedFactory) {
       setRecords([]);
+      setRollingRecords([]);
       return;
     }
     setLoading(true);
-    let url = `/api/records?factoryId=${selectedFactory}&year=${selectedYear}`;
-    if (selectedProcess !== "all") {
-      url += `&processId=${selectedProcess}`;
-    }
-    fetch(url)
-      .then((r) => r.json())
-      .then((data: MonthlyRecord[]) => {
-        setRecords(data);
+    const procParam = selectedProcess !== "all" ? `&processId=${selectedProcess}` : "";
+    const ytdUrl = `/api/records?factoryId=${selectedFactory}&year=${selectedYear}${procParam}`;
+    const rollingUrl = `/api/records?factoryId=${selectedFactory}${procParam}`;
+    Promise.all([
+      fetch(ytdUrl).then((r) => r.json()),
+      fetch(rollingUrl).then((r) => r.json()),
+    ])
+      .then(([ytdData, rollingData]: [MonthlyRecord[], MonthlyRecord[]]) => {
+        setRecords(ytdData);
+        setRollingRecords(rollingData);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -121,12 +125,19 @@ export default function StatusPage() {
     };
   });
 
-  // KPI 계산 (누적 기준: Σ가동시간 / Σ정지횟수)
-  const totalOp = records.reduce((s, r) => s + (r.operatingTime ?? 0), 0);
-  const totalStopCount = records.reduce((s, r) => s + (r.stopCount ?? 0), 0);
-  const totalStopTime = records.reduce((s, r) => s + (r.stopTime ?? 0), 0);
-  const ytdMtbf = totalStopCount > 0 ? totalOp / totalStopCount / 60 : null;
-  const ytdMttr = totalStopCount > 0 ? totalStopTime / totalStopCount / 60 : null;
+  // KPI 계산 (연도 누적: Σ가동시간 / Σ정지횟수)
+  const ytdTotalOp = records.reduce((s, r) => s + (r.operatingTime ?? 0), 0);
+  const ytdStopCount = records.reduce((s, r) => s + (r.stopCount ?? 0), 0);
+  const ytdStopTime = records.reduce((s, r) => s + (r.stopTime ?? 0), 0);
+  const ytdMtbf = ytdStopCount > 0 ? ytdTotalOp / ytdStopCount / 60 : null;
+  const ytdMttr = ytdStopCount > 0 ? ytdStopTime / ytdStopCount / 60 : null;
+
+  // KPI 계산 (연속 누적: 전체 연도 합산)
+  const rollingTotalOp   = rollingRecords.reduce((s, r) => s + (r.operatingTime ?? 0), 0);
+  const rollingStopCount = rollingRecords.reduce((s, r) => s + (r.stopCount ?? 0), 0);
+  const rollingStopTime  = rollingRecords.reduce((s, r) => s + (r.stopTime ?? 0), 0);
+  const rollingMtbf = rollingStopCount > 0 ? rollingTotalOp / rollingStopCount / 60 : null;
+  const rollingMttr = rollingStopCount > 0 ? rollingStopTime / rollingStopCount / 60 : null;
 
   // 테이블용 공정 그룹화
   const processGroups: ProcessGroup[] = (() => {
@@ -171,6 +182,18 @@ export default function StatusPage() {
     return { totalOp, totalStop, totalStopTime, mtbf, mttr };
   };
 
+  const getRollingTotal = (processId: number) => {
+    const recs = rollingRecords.filter((r) => r.processId === processId);
+    const op   = recs.reduce((s, r) => s + (r.operatingTime ?? 0), 0);
+    const cnt  = recs.reduce((s, r) => s + (r.stopCount ?? 0), 0);
+    const stop = recs.reduce((s, r) => s + (r.stopTime ?? 0), 0);
+    return {
+      totalOp: op, totalStop: cnt, totalStopTime: stop,
+      mtbf: cnt > 0 ? op / cnt / 60 : null,
+      mttr: cnt > 0 ? stop / cnt / 60 : null,
+    };
+  };
+
   const selectedProcessName =
     selectedProcess === "all"
       ? "전체"
@@ -180,11 +203,11 @@ export default function StatusPage() {
 
   // 상태 메시지: 조건 분기
   const statusConfig = (() => {
-    if (totalStopCount === 0) return {
+    if (ytdStopCount === 0) return {
       icon: "✅", msg: "무고장 운영 중",
       border: "border-teal-500", bg: "bg-teal-50", text: "text-teal-800",
     };
-    if (totalStopCount < 3) return {
+    if (ytdStopCount < 3) return {
       icon: "⚠️", msg: "해석 주의 — 정지 건수가 적어 MTBF/MTTR 평균값의 신뢰도가 낮습니다",
       border: "border-amber-400", bg: "bg-amber-50", text: "text-amber-800",
     };
@@ -330,25 +353,25 @@ export default function StatusPage() {
         {/* 데이터 영역 */}
         {selectedFactory && !loading && hasData && (
           <>
-            {/* KPI 카드 */}
+            {/* KPI 카드 — 연도 누적 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Card>
                 <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">누적 MTBF</p>
+                  <p className="text-xs text-gray-500 mb-1">연도누적 MTBF</p>
                   <p className="text-2xl font-bold text-blue-600">
                     {ytdMtbf !== null ? ytdMtbf.toFixed(1) : "-"}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">h · 연간 누적 고장 간 평균 가동시간</p>
+                  <p className="text-xs text-gray-400 mt-1">h · {selectedYear}년 누적</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">누적 MTTR</p>
+                  <p className="text-xs text-gray-500 mb-1">연도누적 MTTR</p>
                   <p className="text-2xl font-bold text-orange-500">
                     {ytdMttr !== null ? ytdMttr.toFixed(2) : "-"}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">
-                    h · 총 {totalStopCount}건 기준
+                    h · 총 {ytdStopCount}건 기준
                   </p>
                 </CardContent>
               </Card>
@@ -356,7 +379,7 @@ export default function StatusPage() {
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 mb-1">총 정지횟수</p>
                   <p className="text-2xl font-bold text-gray-700">
-                    {totalStopCount.toLocaleString()}
+                    {ytdStopCount.toLocaleString()}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">회</p>
                 </CardContent>
@@ -365,11 +388,36 @@ export default function StatusPage() {
                 <CardContent className="pt-4">
                   <p className="text-xs text-gray-500 mb-1">총 정지시간</p>
                   <p className="text-2xl font-bold text-gray-700">
-                    {(totalStopTime / 60).toFixed(1)}
+                    {(ytdStopTime / 60).toFixed(1)}
                   </p>
                   <p className="text-xs text-gray-400 mt-1">h (총 정지)</p>
                 </CardContent>
               </Card>
+            </div>
+
+            {/* KPI 카드 — 연속 누적 */}
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 px-5 py-4">
+              <p className="text-xs font-semibold text-indigo-600 mb-3">전체 기간 연속 누적</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-gray-500 mb-1">연속누적 MTBF</p>
+                    <p className="text-2xl font-bold text-indigo-700">
+                      {rollingMtbf !== null ? rollingMtbf.toFixed(1) : "-"}
+                    </p>
+                    <p className="text-xs text-indigo-400 mt-1">h · 전체 기간 연속 누적</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4">
+                    <p className="text-xs text-gray-500 mb-1">연속누적 MTTR</p>
+                    <p className="text-2xl font-bold text-rose-700">
+                      {rollingMttr !== null ? rollingMttr.toFixed(2) : "-"}
+                    </p>
+                    <p className="text-xs text-rose-400 mt-1">h · 총 {rollingStopCount}건 기준</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             {/* 상태 메시지 (조건 분기) */}
@@ -503,13 +551,17 @@ export default function StatusPage() {
                         </th>
                       ))}
                       <th className="border border-gray-300 px-3 py-2 text-center bg-amber-500">
-                        누적
+                        연도누적
+                      </th>
+                      <th className="border border-gray-300 px-3 py-2 text-center bg-indigo-500 text-white">
+                        연속누적
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {processGroups.map((group) => {
                       const totals = getTotal(group);
+                      const rolling = getRollingTotal(group.processId);
                       return (
                         <React.Fragment key={group.processId}>
                           <tr className="bg-white">
@@ -533,6 +585,9 @@ export default function StatusPage() {
                             <td className="border border-gray-300 px-2 py-1 text-center bg-yellow-50 font-medium">
                               {totals.totalOp.toLocaleString()}
                             </td>
+                            <td className="border border-gray-300 px-2 py-1 text-center bg-indigo-50 font-medium">
+                              {rolling.totalOp.toLocaleString()}
+                            </td>
                           </tr>
                           <tr className="bg-gray-50">
                             <td className="border border-gray-300 px-3 py-1 text-gray-600">
@@ -549,6 +604,9 @@ export default function StatusPage() {
                             <td className="border border-gray-300 px-2 py-1 text-center bg-yellow-50 font-medium">
                               {totals.totalStop}
                             </td>
+                            <td className="border border-gray-300 px-2 py-1 text-center bg-indigo-50 font-medium">
+                              {rolling.totalStop}
+                            </td>
                           </tr>
                           <tr className="bg-white">
                             <td className="border border-gray-300 px-3 py-1 text-gray-600">
@@ -564,6 +622,9 @@ export default function StatusPage() {
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-yellow-50 font-medium">
                               {totals.totalStopTime}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-center bg-indigo-50 font-medium">
+                              {rolling.totalStopTime}
                             </td>
                           </tr>
                           <tr className="bg-amber-50">
@@ -585,6 +646,9 @@ export default function StatusPage() {
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">
                               {fmt(totals.mtbf, 1)}
                             </td>
+                            <td className="border border-gray-300 px-2 py-1 text-center bg-indigo-200 font-bold text-indigo-900">
+                              {fmt(rolling.mtbf, 1)}
+                            </td>
                           </tr>
                           <tr className="bg-amber-50">
                             <td className="border border-gray-300 px-3 py-1 font-bold text-amber-800">
@@ -604,6 +668,9 @@ export default function StatusPage() {
                             ))}
                             <td className="border border-gray-300 px-2 py-1 text-center bg-amber-200 font-bold text-amber-900">
                               {fmt(totals.mttr, 2)}
+                            </td>
+                            <td className="border border-gray-300 px-2 py-1 text-center bg-indigo-200 font-bold text-indigo-900">
+                              {fmt(rolling.mttr, 2)}
                             </td>
                           </tr>
                         </React.Fragment>
