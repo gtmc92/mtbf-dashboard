@@ -39,6 +39,13 @@ interface TopRepairItem {
   description: string;
 }
 
+interface NonRepairItem {
+  equipment: string;
+  durationMin: number;
+  repairType: string;
+  description: string;
+}
+
 interface FacilitySummary {
   years: number[];
   total: { incidentCount: number; totalDurationMin: number };
@@ -47,6 +54,8 @@ interface FacilitySummary {
   topEquipment: EquipmentStat[];
   byEquipmentRepairType: Record<string, unknown>[];
   topRepairs: TopRepairItem[];
+  improvementTopItems: NonRepairItem[];
+  maintenanceTopItems: NonRepairItem[];
 }
 
 function fmtMin(min: number) {
@@ -91,7 +100,20 @@ export default function FacilityPage() {
   const reactive = data?.byManagementType.find((m) =>
     m.managementType?.toLowerCase().includes("reactive")
   );
+  const nonRepairStat = data?.byManagementType.find((m) =>
+    m.managementType?.toLowerCase().includes("non-repair")
+  );
   const prTotal = (preventive?.count ?? 0) + (reactive?.count ?? 0);
+
+  // 비수리 집계 (byRepairType에서 계산)
+  const improvementMin = (data?.byRepairType ?? [])
+    .filter((r) => ["일반제작", "개발작업"].includes(r.repairType))
+    .reduce((s, r) => s + r.durationMin, 0);
+  const maintenanceMin = (data?.byRepairType ?? [])
+    .find((r) => r.repairType === "유지보수")?.durationMin ?? 0;
+  const nonRepairCount = nonRepairStat?.count ?? 0;
+  const nonRepairRatio =
+    totalCount > 0 ? Math.round((nonRepairCount / totalCount) * 1000) / 10 : 0;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -198,6 +220,49 @@ export default function FacilityPage() {
               </div>
             </div>
 
+            {/* ── 비수리 영역 (Non-Repair) ── */}
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4">
+              <p className="text-sm font-bold text-indigo-800 mb-3">
+                설비 개선 &amp; 유지보수 활동 (Non-Repair)
+                <span className="ml-2 text-xs font-normal text-indigo-500">MTBF/MTTR 계산에서 제외된 영역</span>
+              </p>
+
+              {/* 비수리 KPI 카드 3개 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
+                  <p className="text-xs text-gray-500 mb-1">비수리 작업 비율</p>
+                  <p className="text-2xl font-bold text-indigo-600">{nonRepairRatio.toFixed(1)}<span className="text-sm ml-1">%</span></p>
+                  <p className="text-xs text-gray-400 mt-1">전체 {totalCount.toLocaleString()}건 중 {nonRepairCount.toLocaleString()}건</p>
+                </div>
+                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
+                  <p className="text-xs text-gray-500 mb-1">개선작업 시간 (일반제작+개발작업)</p>
+                  <p className="text-2xl font-bold text-indigo-600">{fmtMin(improvementMin)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{Math.round(improvementMin).toLocaleString()}분</p>
+                </div>
+                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
+                  <p className="text-xs text-gray-500 mb-1">유지보수 시간</p>
+                  <p className="text-2xl font-bold text-slate-600">{fmtMin(maintenanceMin)}</p>
+                  <p className="text-xs text-gray-400 mt-1">{Math.round(maintenanceMin).toLocaleString()}분</p>
+                </div>
+              </div>
+
+              {/* 비수리 유형 설명 */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <div className="rounded-lg border-l-4 border-indigo-400 bg-white px-3 py-2">
+                  <p className="text-sm font-semibold text-indigo-700">일반제작</p>
+                  <p className="text-xs text-indigo-600 mt-0.5">설비·치공구 신규 제작 활동</p>
+                </div>
+                <div className="rounded-lg border-l-4 border-purple-400 bg-white px-3 py-2">
+                  <p className="text-sm font-semibold text-purple-700">개발작업</p>
+                  <p className="text-xs text-purple-600 mt-0.5">공정 개선 및 기술 개발 활동</p>
+                </div>
+                <div className="rounded-lg border-l-4 border-slate-400 bg-white px-3 py-2">
+                  <p className="text-sm font-semibold text-slate-700">유지보수</p>
+                  <p className="text-xs text-slate-600 mt-0.5">설비 정기 점검 및 유지 활동</p>
+                </div>
+              </div>
+            </div>
+
             {/* 핵심 메시지 */}
             {(() => {
               const total = (preventive?.count ?? 0) + (reactive?.count ?? 0);
@@ -296,6 +361,107 @@ export default function FacilityPage() {
                                   <button
                                     className="text-xs text-blue-500 mt-1 hover:underline"
                                     onClick={() => toggleExpand(i)}
+                                  >
+                                    {isExpanded ? "접기" : "더보기"}
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {/* 개선작업 TOP (일반제작+개발작업) */}
+            {data.improvementTopItems.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">개선작업 최장 시간 TOP 10 (일반제작·개발작업)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data.improvementTopItems.map((r, i) => {
+                      const isExpanded = expandedRows.has(1000 + i);
+                      const LIMIT = 60;
+                      const isLong = r.description.length > LIMIT;
+                      const displayText = isExpanded || !isLong
+                        ? r.description
+                        : r.description.slice(0, LIMIT) + "…";
+                      return (
+                        <div key={i} className="flex gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center mt-0.5">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.repairType === "일반제작" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
+                                {r.repairType}
+                              </span>
+                              <span className="text-xs text-gray-500">{fmtMin(r.durationMin)}</span>
+                            </div>
+                            {r.description ? (
+                              <>
+                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
+                                {isLong && (
+                                  <button
+                                    className="text-xs text-blue-500 mt-1 hover:underline"
+                                    onClick={() => toggleExpand(1000 + i)}
+                                  >
+                                    {isExpanded ? "접기" : "더보기"}
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              <p className="text-xs text-gray-400">—</p>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 유지보수 TOP */}
+            {data.maintenanceTopItems.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">유지보수 최장 시간 TOP 10</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {data.maintenanceTopItems.map((r, i) => {
+                      const isExpanded = expandedRows.has(2000 + i);
+                      const LIMIT = 60;
+                      const isLong = r.description.length > LIMIT;
+                      const displayText = isExpanded || !isLong
+                        ? r.description
+                        : r.description.slice(0, LIMIT) + "…";
+                      return (
+                        <div key={i} className="flex gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
+                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center mt-0.5">
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
+                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">유지보수</span>
+                              <span className="text-xs text-gray-500">{fmtMin(r.durationMin)}</span>
+                            </div>
+                            {r.description ? (
+                              <>
+                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
+                                {isLong && (
+                                  <button
+                                    className="text-xs text-blue-500 mt-1 hover:underline"
+                                    onClick={() => toggleExpand(2000 + i)}
                                   >
                                     {isExpanded ? "접기" : "더보기"}
                                   </button>

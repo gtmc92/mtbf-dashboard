@@ -28,6 +28,8 @@ export async function GET(req: Request) {
     yearRows,
     topRepairRows,
     repairTypeMasters,
+    improvementTopRows,
+    maintenanceTopRows,
   ] = await Promise.all([
     prisma.repairTypeRecord.aggregate({
       where,
@@ -75,6 +77,28 @@ export async function GET(req: Request) {
     }),
     // 표시순서 lookup
     prisma.repairTypeMaster.findMany({ orderBy: { displayOrder: "asc" } }),
+    // 개선작업 TOP (일반제작 + 개발작업) — durationMin 기준
+    prisma.repairTypeRecord.findMany({
+      where: {
+        AND: [
+          where,
+          { repairType: { in: ["일반제작", "개발작업"] } },
+          { durationMin: { not: null } },
+        ],
+      },
+      select: { equipment: true, durationMin: true, repairType: true, description: true },
+    }),
+    // 유지보수 TOP — durationMin 기준
+    prisma.repairTypeRecord.findMany({
+      where: {
+        AND: [
+          where,
+          { repairType: "유지보수" },
+          { durationMin: { not: null } },
+        ],
+      },
+      select: { equipment: true, durationMin: true, repairType: true, description: true },
+    }),
   ]);
 
   // 표시순서 맵 (repairType → displayOrder)
@@ -131,6 +155,24 @@ export async function GET(req: Request) {
       .map((r) => ({
         equipment: r.equipment,
         repairTime: r.repairTime ?? r.durationMin ?? 0,
+        repairType: r.repairType ?? "미분류",
+        description: r.description ?? "",
+      })),
+    improvementTopItems: improvementTopRows
+      .sort((a, b) => (b.durationMin ?? 0) - (a.durationMin ?? 0))
+      .slice(0, 10)
+      .map((r) => ({
+        equipment: r.equipment,
+        durationMin: r.durationMin ?? 0,
+        repairType: r.repairType ?? "미분류",
+        description: r.description ?? "",
+      })),
+    maintenanceTopItems: maintenanceTopRows
+      .sort((a, b) => (b.durationMin ?? 0) - (a.durationMin ?? 0))
+      .slice(0, 10)
+      .map((r) => ({
+        equipment: r.equipment,
+        durationMin: r.durationMin ?? 0,
         repairType: r.repairType ?? "미분류",
         description: r.description ?? "",
       })),

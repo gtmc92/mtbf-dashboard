@@ -20,6 +20,9 @@ const COLORS: Record<string, string> = {
   휴무수리: "#f59e0b",
   가동수리: "#10b981",
   정지수리: "#ef4444",
+  일반제작: "#6366f1",
+  개발작업: "#8b5cf6",
+  유지보수: "#64748b",
 };
 const FALLBACK_COLORS = ["#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
 
