@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const yearParam = searchParams.get("year");
 
-  const factoryFilters = FACILITY_VISIBLE_FACTORIES.map((f) => ({ equipment: { startsWith: `${f}_` } }));
+  const factoryFilters = FACILITY_VISIBLE_FACTORIES.map((f) => ({ equipment: { startsWith: f } }));
   const commonFilters = FACILITY_COMMON_EQUIPMENT.map((e) => ({ equipment: e }));
   const equipmentOR = [...factoryFilters, ...commonFilters];
 
@@ -27,29 +27,27 @@ export async function GET(req: Request) {
     equipmentRepairTypeRows,
     yearRows,
     topRepairRows,
+    repairTypeMasters,
   ] = await Promise.all([
-    prisma.incidentRecord.aggregate({
+    prisma.repairTypeRecord.aggregate({
       where,
-      _count: { id: true },
-      _sum: { durationMin: true },
+      _sum: { count: true, durationMin: true },
     }),
     prisma.repairTypeRecord.groupBy({
       by: ["repairType"],
       where,
       _sum: { count: true, durationMin: true },
-      orderBy: { _sum: { count: "desc" } },
     }),
     prisma.repairTypeRecord.groupBy({
       by: ["managementType"],
       where,
       _sum: { count: true, durationMin: true },
     }),
-    prisma.incidentRecord.groupBy({
+    prisma.repairTypeRecord.groupBy({
       by: ["equipment"],
       where,
-      _count: { id: true },
-      _sum: { durationMin: true },
-      orderBy: { _count: { id: "desc" } },
+      _sum: { count: true, durationMin: true },
+      orderBy: { _sum: { count: "desc" } },
       take: 10,
     }),
     // 공정별 + 수리유형별 집계 (stacked chart용)
@@ -58,7 +56,7 @@ export async function GET(req: Request) {
       where,
       _sum: { count: true },
     }),
-    prisma.incidentRecord.findMany({
+    prisma.repairTypeRecord.findMany({
       select: { year: true },
       distinct: ["year"],
       orderBy: { year: "asc" },
@@ -75,7 +73,14 @@ export async function GET(req: Request) {
       },
       select: { equipment: true, repairTime: true, durationMin: true, repairType: true, description: true },
     }),
+    // 표시순서 lookup
+    prisma.repairTypeMaster.findMany({ orderBy: { displayOrder: "asc" } }),
   ]);
+
+  // 표시순서 맵 (repairType → displayOrder)
+  const displayOrderMap = new Map(
+    repairTypeMasters.map((m) => [m.repairType, m.displayOrder])
+  );
 
   // top 10 equipment 목록
   const top10 = equipmentGroups.map((g) => g.equipment);
@@ -95,14 +100,20 @@ export async function GET(req: Request) {
   return NextResponse.json({
     years: yearRows.map((r) => r.year),
     total: {
-      incidentCount: totalAgg._count.id,
+      incidentCount: totalAgg._sum.count ?? 0,
       totalDurationMin: totalAgg._sum.durationMin ?? 0,
     },
-    byRepairType: repairTypeGroups.map((g) => ({
-      repairType: g.repairType ?? "미분류",
-      count: g._sum.count ?? 0,
-      durationMin: g._sum.durationMin ?? 0,
-    })),
+    byRepairType: repairTypeGroups
+      .map((g) => ({
+        repairType: g.repairType ?? "미분류",
+        count: g._sum.count ?? 0,
+        durationMin: g._sum.durationMin ?? 0,
+      }))
+      .sort((a, b) => {
+        const oa = displayOrderMap.get(a.repairType) ?? 99;
+        const ob = displayOrderMap.get(b.repairType) ?? 99;
+        return oa - ob;
+      }),
     byManagementType: managementTypeGroups.map((g) => ({
       managementType: g.managementType ?? "미분류",
       count: g._sum.count ?? 0,
@@ -110,7 +121,7 @@ export async function GET(req: Request) {
     })),
     topEquipment: equipmentGroups.map((g) => ({
       equipment: g.equipment,
-      incidentCount: g._count.id,
+      incidentCount: g._sum.count ?? 0,
       totalDurationMin: g._sum.durationMin ?? 0,
     })),
     byEquipmentRepairType,

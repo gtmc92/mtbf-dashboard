@@ -73,39 +73,15 @@ model Record {
   @@unique([year, factory, process, month], name: "unique_record")
 }
 
-// 시설 사고/수리 원장 (DATA_BASE.csv)
-model IncidentRecord {
-  id              Int      @id @default(autoincrement())
-  no              Int      // NO
-  year            Int      // 년도
-  month           Int      // 월
-  day             Int      // 일
-  startTime       String?  // 시작
-  endTime         String?  // 마감
-  durationMin     Float?   // 시간(분)
-  equipment       String   // 대표설비 (F2_54인치 등)
-  subEquipment    String?  // 구성설비
-  repairItem      String?  // 수리항목
-  incidentType    String?  // 사고분류
-  description     String?  // 사고 처리 내용
-  offRepairCount  Int?     // 휴무수리 건수
-  offRepairTime   Float?   // 휴무수리 시간
-  pmRepairCount   Int?     // 보전수리 건수
-  pmRepairTime    Float?   // 보전수리 시간
-  runRepairCount  Int?     // 가동수리 건수
-  runRepairTime   Float?   // 가동수리 시간
-  stopRepairCount Int?     // 정지수리 건수
-  stopRepairTime  Float?   // 정지수리 시간
-  cause           String?  // 원인
-  technician      String?  // 조치자
-  technicianCount Int?     // 조치인원
-  repairTime      Float?   // 수리시간
-  quarter         String?  // 분기
-  yearMonth       String?  // 연월
-  createdAt       DateTime @default(now())
+// 수리유형 기준표 (DATA_TYPE.csv lookup table)
+model RepairTypeMaster {
+  id             Int    @id @default(autoincrement())
+  repairType     String @unique // 수리유형
+  managementType String          // 관리구분 (Preventive/Reactive/Non-Repair)
+  displayOrder   Int             // 표시순서
 }
 
-// 수리유형 집계 (DATA_TYPE.csv)
+// 시설 사고/수리 원장 - long format (DATA_BASE.csv)
 model RepairTypeRecord {
   id              Int      @id @default(autoincrement())
   no              Int      // NO

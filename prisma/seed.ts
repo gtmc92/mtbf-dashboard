@@ -139,69 +139,46 @@ async function getOrCreateProcess(name: string, factoryId: number) {
   });
 }
 
-// ─── BASE (시설 사고/수리 원장) ───────────────────────────────────────────────
+// ─── BASE (시설 사고/수리 원장 - long format) ─────────────────────────────────
 
 function loadBaseRows(csvPath: string) {
   const { headers, rows } = readCsv(csvPath);
   const H = buildHeaderMap(headers);
-  requireColumns(H, ["NO", "년도", "월", "일", "대표설비"], "DATA_BASE.csv");
+  requireColumns(H, ["NO", "년도", "월", "일", "대표설비", "수리유형", "건수"], "DATA_BASE.csv");
 
   return rows.map((cols) => ({
     no:              parseNumber(cols[H["NO"]] ?? "") ?? 0,
     year:            parseNumber(cols[H["년도"]] ?? "") ?? 0,
     month:           parseNumber(cols[H["월"]] ?? "") ?? 0,
     day:             parseNumber(cols[H["일"]] ?? "") ?? 0,
-    startTime:       parseString(cols[H["시작"]] ?? "") || null,
-    endTime:         parseString(cols[H["마감"]] ?? "") || null,
-    durationMin:     parseNumber(cols[H["시간(분)"]] ?? ""),
     equipment:       parseString(cols[H["대표설비"]] ?? ""),
     subEquipment:    parseString(cols[H["구성설비"]] ?? "") || null,
     repairItem:      parseString(cols[H["수리항목"]] ?? "") || null,
     incidentType:    parseString(cols[H["사고분류"]] ?? "") || null,
     description:     parseString(cols[H["사고 처리 내용"]] ?? "") || null,
-    offRepairCount:  parseNumber(cols[H["휴무수리 건수"]] ?? ""),
-    offRepairTime:   parseNumber(cols[H["휴무수리 시간"]] ?? ""),
-    pmRepairCount:   parseNumber(cols[H["보전수리 건수"]] ?? ""),
-    pmRepairTime:    parseNumber(cols[H["보전수리 시간"]] ?? ""),
-    runRepairCount:  parseNumber(cols[H["가동수리 건수"]] ?? ""),
-    runRepairTime:   parseNumber(cols[H["가동수리 시간"]] ?? ""),
-    stopRepairCount: parseNumber(cols[H["정지수리 건수"]] ?? ""),
-    stopRepairTime:  parseNumber(cols[H["정지수리 시간"]] ?? ""),
     cause:           parseString(cols[H["원인"]] ?? "") || null,
     technician:      parseString(cols[H["조치자"]] ?? "") || null,
     technicianCount: parseNumber(cols[H["조치인원"]] ?? ""),
-    repairTime:      parseNumber(cols[H["수리시간"]] ?? ""),
+    repairTime:      parseNumber(cols[H["수리시간"]] ?? ""),   // 인원 가중 시간 (조치인원 × 시간(분))
+    durationMin:     parseNumber(cols[H["시간(분)"]] ?? ""),   // 순수 작업 시간
+    count:           parseNumber(cols[H["건수"]] ?? ""),
+    repairType:      parseString(cols[H["수리유형"]] ?? "") || null,
+    managementType:  parseString(cols[H["관리구분"]] ?? "") || null,
     quarter:         parseString(cols[H["분기"]] ?? "") || null,
-    yearMonth:       parseString(cols[H["연월"]] ?? "") || null,
   }));
 }
 
-// ─── TYPE (수리유형 집계) ─────────────────────────────────────────────────────
+// ─── TYPE (수리유형 lookup table) ─────────────────────────────────────────────
 
 function loadTypeRows(csvPath: string) {
   const { headers, rows } = readCsv(csvPath);
   const H = buildHeaderMap(headers);
-  requireColumns(H, ["NO", "년도", "월", "일", "대표설비"], "DATA_TYPE.csv");
+  requireColumns(H, ["수리유형", "관리구분", "표시순서"], "DATA_TYPE.csv");
 
   return rows.map((cols) => ({
-    no:              parseNumber(cols[H["NO"]] ?? "") ?? 0,
-    year:            parseNumber(cols[H["년도"]] ?? "") ?? 0,
-    month:           parseNumber(cols[H["월"]] ?? "") ?? 0,
-    day:             parseNumber(cols[H["일"]] ?? "") ?? 0,
-    equipment:       parseString(cols[H["대표설비"]] ?? ""),
-    subEquipment:    parseString(cols[H["구성설비"]] ?? "") || null,
-    repairItem:      parseString(cols[H["수리항목"]] ?? "") || null,
-    incidentType:    parseString(cols[H["사고분류"]] ?? "") || null,
-    description:     parseString(cols[H["사고 처리 내용"]] ?? "") || null,
-    cause:           parseString(cols[H["원인"]] ?? "") || null,
-    technician:      parseString(cols[H["조치자"]] ?? "") || null,
-    technicianCount: parseNumber(cols[H["조치인원"]] ?? ""),
-    repairTime:      parseNumber(cols[H["수리시간"]] ?? ""),
-    repairType:      parseString(cols[H["수리유형"]] ?? "") || null,
-    count:           parseNumber(cols[H["건수"]] ?? ""),
-    durationMin:     parseNumber(cols[H["시간(분)"]] ?? ""),
-    managementType:  parseString(cols[H["관리구분"]] ?? "") || null,
-    quarter:         parseString(cols[H["분기"]] ?? "") || null,
+    repairType:     parseString(cols[H["수리유형"]] ?? ""),
+    managementType: parseString(cols[H["관리구분"]] ?? ""),
+    displayOrder:   parseNumber(cols[H["표시순서"]] ?? "") ?? 99,
   }));
 }
 
@@ -211,12 +188,12 @@ async function main() {
   // ── 1. 삭제 (외래키 순서 준수) ──
   console.log("🗑️  기존 데이터 삭제 중...");
   const delType     = await prisma.repairTypeRecord.deleteMany();
-  const delBase     = await prisma.incidentRecord.deleteMany();
+  const delMaster   = await prisma.repairTypeMaster.deleteMany();
   const delRecords  = await prisma.monthlyRecord.deleteMany();
   const delProcesses = await prisma.process.deleteMany();
   const delFactories = await prisma.factory.deleteMany();
   console.log(
-    `   RepairTypeRecord ${delType.count}건, IncidentRecord ${delBase.count}건, ` +
+    `   RepairTypeRecord ${delType.count}건, RepairTypeMaster ${delMaster.count}건, ` +
     `MonthlyRecord ${delRecords.count}건, Process ${delProcesses.count}건, Factory ${delFactories.count}건 삭제 완료`
   );
 
@@ -265,25 +242,25 @@ async function main() {
   console.log(`✅ MonthlyRecord ${pteamInserted}건 반영 완료`);
 
   // ══ BASE ═══════════════════════════════════════════════════════════════════
-  console.log("\n━━━ [2/3] DATA_BASE.csv (시설 사고/수리 원장) ━━━");
+  console.log("\n━━━ [2/3] DATA_BASE.csv (시설 사고/수리 원장 - long format) ━━━");
   const baseRows = loadBaseRows(path.join(__dirname, "DATA_BASE.csv"));
   console.log(`📄 ${baseRows.length}행 로드`);
-  await prisma.incidentRecord.createMany({ data: baseRows });
-  console.log(`✅ IncidentRecord ${baseRows.length}건 반영 완료`);
+  await prisma.repairTypeRecord.createMany({ data: baseRows });
+  console.log(`✅ RepairTypeRecord(BASE) ${baseRows.length}건 반영 완료`);
 
   // ══ TYPE ═══════════════════════════════════════════════════════════════════
-  console.log("\n━━━ [3/3] DATA_TYPE.csv (수리유형 집계) ━━━");
+  console.log("\n━━━ [3/3] DATA_TYPE.csv (수리유형 lookup table) ━━━");
   const typeRows = loadTypeRows(path.join(__dirname, "DATA_TYPE.csv"));
   console.log(`📄 ${typeRows.length}행 로드`);
-  await prisma.repairTypeRecord.createMany({ data: typeRows });
-  console.log(`✅ RepairTypeRecord ${typeRows.length}건 반영 완료`);
+  await prisma.repairTypeMaster.createMany({ data: typeRows });
+  console.log(`✅ RepairTypeMaster ${typeRows.length}건 반영 완료`);
 
   // ══ 최종 요약 ══════════════════════════════════════════════════════════════
   console.log("\n══════════════════════════════════════");
   console.log("✅ 전체 Seed 완료");
   console.log(`   MonthlyRecord   : ${pteamInserted}건`);
-  console.log(`   IncidentRecord  : ${baseRows.length}건`);
-  console.log(`   RepairTypeRecord: ${typeRows.length}건`);
+  console.log(`   RepairTypeRecord: ${baseRows.length}건`);
+  console.log(`   RepairTypeMaster: ${typeRows.length}건`);
 }
 
 main()

@@ -4,29 +4,29 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const currentYear = new Date().getFullYear();
+  const latestYearRow = await prisma.repairTypeRecord.aggregate({ _max: { year: true } });
+  const currentYear = latestYearRow._max.year ?? new Date().getFullYear();
 
-  const [mtbfAgg, incidentAgg, managementGroups, equipmentGroups, lastMonthAgg, rollingAgg] =
+  const [mtbfAgg, repairAgg, managementGroups, equipmentGroups, lastMonthAgg, rollingAgg] =
     await Promise.all([
       prisma.monthlyRecord.aggregate({
         where: { year: currentYear },
         _sum: { operatingTime: true, stopCount: true, stopTime: true },
       }),
-      prisma.incidentRecord.aggregate({
+      prisma.repairTypeRecord.aggregate({
         where: { year: currentYear },
-        _count: { id: true },
-        _sum: { durationMin: true },
+        _sum: { count: true, durationMin: true },
       }),
       prisma.repairTypeRecord.groupBy({
         by: ["managementType"],
         where: { year: currentYear },
         _sum: { count: true },
       }),
-      prisma.incidentRecord.groupBy({
+      prisma.repairTypeRecord.groupBy({
         by: ["equipment"],
         where: { year: currentYear },
-        _count: { id: true },
-        orderBy: { _count: { id: "desc" } },
+        _sum: { count: true },
+        orderBy: { _sum: { count: "desc" } },
         take: 1,
       }),
       // 마지막 데이터 월 조회
@@ -40,9 +40,9 @@ export async function GET() {
       }),
     ]);
 
-  const totalIncidents = incidentAgg._count.id;
+  const totalIncidents = repairAgg._sum.count ?? 0;
   const totalRepairHours =
-    Math.round(((incidentAgg._sum.durationMin ?? 0) / 60) * 10) / 10;
+    Math.round(((repairAgg._sum.durationMin ?? 0) / 60) * 10) / 10;
 
   const preventiveCount =
     managementGroups
@@ -57,7 +57,7 @@ export async function GET() {
   const topEquipment = topEq
     ? topEq.equipment.replace(/^(F1_|F2_)/, "")
     : "-";
-  const topEquipmentCount = topEq ? topEq._count.id : 0;
+  const topEquipmentCount = topEq ? (topEq._sum.count ?? 0) : 0;
   const topEquipmentRatio =
     totalIncidents > 0
       ? Math.round((topEquipmentCount / totalIncidents) * 1000) / 10
