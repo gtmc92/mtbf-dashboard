@@ -46,7 +46,8 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
   };
 
   return (
-    <div className="flex items-center justify-center gap-6">
+    <div className="flex justify-center">
+      <div className="inline-flex items-center gap-8">
       <ResponsiveContainer width={220} height={260}>
         <PieChart>
           <Pie
@@ -86,6 +87,7 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }
