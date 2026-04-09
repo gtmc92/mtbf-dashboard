@@ -293,7 +293,7 @@ export default function FacilityPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">수리 유형 분포</CardTitle>
+                  <CardTitle className="text-base">시설팀 작업시간 분포</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <RepairTypePieChart data={data.byRepairType} />
@@ -301,7 +301,7 @@ export default function FacilityPage() {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">Preventive vs Reactive</CardTitle>
+                  <CardTitle className="text-base">Preventive vs Reactive vs Non-Repair</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <PreventiveReactiveChart data={data.byManagementType} />
@@ -321,7 +321,7 @@ export default function FacilityPage() {
               </Card>
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">설비별 수리유형 분포</CardTitle>
+                  <CardTitle className="text-base">설비별 작업유형 분포</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ProcessStackedChart data={data.byEquipmentRepairType} />

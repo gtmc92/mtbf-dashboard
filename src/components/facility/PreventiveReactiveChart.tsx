@@ -20,11 +20,18 @@ interface ManagementTypeStat {
 export function PreventiveReactiveChart({ data }: { data: ManagementTypeStat[] }) {
   if (!data.length) return <p className="text-center text-gray-400 text-sm py-10">데이터 없음</p>;
 
-  const chartData = data.map((d) => ({
-    name: d.managementType ?? "미분류",
-    건수: d.count,
-    시간: Math.round(d.durationMin / 60), // 분 → 시간
-  }));
+  const ORDER = ["Preventive", "Reactive", "Non-Repair"];
+  const chartData = [...data]
+    .sort((a, b) => {
+      const ia = ORDER.indexOf(a.managementType ?? "");
+      const ib = ORDER.indexOf(b.managementType ?? "");
+      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+    })
+    .map((d) => ({
+      name: d.managementType ?? "미분류",
+      건수: d.count,
+      시간: Math.round(d.durationMin / 60), // 분 → 시간
+    }));
 
   return (
     <ResponsiveContainer width="100%" height={260}>

@@ -26,6 +26,23 @@ const COLORS: Record<string, string> = {
 };
 const FALLBACK_COLORS = ["#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
 
+const renderCustomLegend = (props: any) => {
+  const { payload } = props;
+  return (
+    <ul className="flex flex-col gap-1.5 justify-center pl-2">
+      {payload.map((entry: any) => (
+        <li key={entry.value} className="flex items-center gap-2 text-sm text-gray-700">
+          <span
+            className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+            style={{ backgroundColor: entry.color }}
+          />
+          {entry.value}
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
   if (!data.length) return <p className="text-center text-gray-400 text-sm py-10">데이터 없음</p>;
 
@@ -53,7 +70,7 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
           data={data}
           dataKey="count"
           nameKey="repairType"
-          cx="50%"
+          cx="40%"
           cy="50%"
           innerRadius={60}
           outerRadius={100}
@@ -73,7 +90,12 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
             name,
           ]}
         />
-        <Legend />
+        <Legend
+          layout="vertical"
+          align="right"
+          verticalAlign="middle"
+          content={renderCustomLegend}
+        />
       </PieChart>
     </ResponsiveContainer>
   );
