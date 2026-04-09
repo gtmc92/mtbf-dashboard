@@ -5,7 +5,6 @@ import {
   Pie,
   Cell,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from "recharts";
 
@@ -25,23 +24,6 @@ const COLORS: Record<string, string> = {
   유지보수: "#64748b",
 };
 const FALLBACK_COLORS = ["#8b5cf6", "#06b6d4", "#f97316", "#84cc16"];
-
-const renderCustomLegend = (props: any) => {
-  const { payload } = props;
-  return (
-    <ul className="flex flex-col gap-1.5 justify-center pl-2">
-      {payload.map((entry: any) => (
-        <li key={entry.value} className="flex items-center gap-2 text-sm text-gray-700">
-          <span
-            className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
-            style={{ backgroundColor: entry.color }}
-          />
-          {entry.value}
-        </li>
-      ))}
-    </ul>
-  );
-};
 
 export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
   if (!data.length) return <p className="text-center text-gray-400 text-sm py-10">데이터 없음</p>;
@@ -64,39 +46,46 @@ export function RepairTypePieChart({ data }: { data: RepairTypeStat[] }) {
   };
 
   return (
-    <ResponsiveContainer width="100%" height={260}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="count"
-          nameKey="repairType"
-          cx="40%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={100}
-          labelLine={false}
-          label={renderLabel}
-        >
-          {data.map((entry, i) => (
-            <Cell
-              key={entry.repairType}
-              fill={COLORS[entry.repairType] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length]}
+    <div className="flex items-center justify-center gap-6">
+      <ResponsiveContainer width={220} height={260}>
+        <PieChart>
+          <Pie
+            data={data}
+            dataKey="count"
+            nameKey="repairType"
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={100}
+            labelLine={false}
+            label={renderLabel}
+          >
+            {data.map((entry, i) => (
+              <Cell
+                key={entry.repairType}
+                fill={COLORS[entry.repairType] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length]}
+              />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value, name) => [
+              `${Number(value).toLocaleString()}건 (${((Number(value) / total) * 100).toFixed(1)}%)`,
+              name,
+            ]}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      <ul className="flex flex-col gap-1.5">
+        {data.map((entry, i) => (
+          <li key={entry.repairType} className="flex items-center gap-2 text-sm text-gray-700">
+            <span
+              className="inline-block w-3 h-3 rounded-sm flex-shrink-0"
+              style={{ backgroundColor: COLORS[entry.repairType] ?? FALLBACK_COLORS[i % FALLBACK_COLORS.length] }}
             />
-          ))}
-        </Pie>
-        <Tooltip
-          formatter={(value, name) => [
-            `${Number(value).toLocaleString()}건 (${((Number(value) / total) * 100).toFixed(1)}%)`,
-            name,
-          ]}
-        />
-        <Legend
-          layout="vertical"
-          align="right"
-          verticalAlign="middle"
-          content={renderCustomLegend}
-        />
-      </PieChart>
-    </ResponsiveContainer>
+            {entry.repairType}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
