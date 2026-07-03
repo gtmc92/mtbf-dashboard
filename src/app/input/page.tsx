@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { RawUploadPanel } from "@/components/data-upload/RawUploadPanel";
 import Link from "next/link";
 import type { Factory, Process } from "@/types";
 
@@ -129,11 +130,18 @@ export default function InputPage() {
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link href="/" className="text-gray-400 hover:text-gray-600 text-sm">← 홈</Link>
-          <h1 className="text-xl font-bold text-gray-900">데이터 입력</h1>
+          <h1 className="text-xl font-bold text-gray-900">데이터 관리</h1>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-6 py-6">
+        <Tabs defaultValue="monthly">
+          <TabsList className="mb-6">
+            <TabsTrigger value="monthly">월별 데이터 입력</TabsTrigger>
+            <TabsTrigger value="raw">원본 데이터 업로드</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="monthly">
         {/* 필터 선택 */}
         <Card className="mb-6">
           <CardHeader>
@@ -328,6 +336,12 @@ export default function InputPage() {
             연도, 공장, 공정을 선택하면 입력 테이블이 표시됩니다.
           </div>
         )}
+          </TabsContent>
+
+          <TabsContent value="raw">
+            <RawUploadPanel />
+          </TabsContent>
+        </Tabs>
       </div>
     </main>
   );

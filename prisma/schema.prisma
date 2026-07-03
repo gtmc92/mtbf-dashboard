@@ -103,4 +103,40 @@ model RepairTypeRecord {
   managementType  String?  // 관리구분 (Preventive/Reactive)
   quarter         String?  // 분기
   createdAt       DateTime @default(now())
+
+  uploadBatch     UploadBatch? @relation(fields: [uploadBatchId], references: [id])
+  uploadBatchId   Int?
+}
+
+// 원본 업로드 배치 (웹 업로드 → 변환 → 적용 이력)
+model UploadBatch {
+  id               Int       @id @default(autoincrement())
+  fileName         String
+  applyMode        String    // REPLACE_PERIOD | REPLACE_ALL | APPEND
+  status           String    // PREVIEWED | APPLIED | REVERTED | FAILED
+  periodStartYear  Int?
+  periodStartMonth Int?
+  periodEndYear    Int?
+  periodEndMonth   Int?
+  rowCount         Int
+  errorCount       Int
+  warningCount     Int
+  backupData       Json?     // 교체/삭제된 기존 RepairTypeRecord 스냅샷 (되돌리기용)
+  uploadedAt       DateTime  @default(now())
+  appliedAt        DateTime?
+  revertedAt       DateTime?
+
+  stagingRows      UploadStagingRow[]
+  records          RepairTypeRecord[]
+}
+
+// 업로드 미리보기 임시 저장 (적용 전 검증/미리보기 단계)
+model UploadStagingRow {
+  id        Int         @id @default(autoincrement())
+  batch     UploadBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchId   Int
+  rowIndex  Int
+  data      Json        // 변환된 RepairTypeRecord 필드 셋
+  errors    Json        // string[]
+  warnings  Json        // string[]
 }
