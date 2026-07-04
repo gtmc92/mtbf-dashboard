@@ -4,6 +4,9 @@
 - 대상 경로: `/facility`
 - 관련 기존 경로: `/input`
 - 주요 컴포넌트: `RawUploadPanel`
+- 구현 commit: `e9c0e98`
+- production deployment: `dpl_B7F7z2bRecRanh1PPU1bzSwxcDaR`
+- production URL: https://mtbf-dashboard.vercel.app
 
 ## 1. 원인 분석
 
@@ -131,14 +134,53 @@ npm run build
 
 ## 8. Commit / Push
 
-아직 이 보고서 작성 시점에는 commit/push 전이다.
+구현 변경과 보고서 추가를 포함해 commit/push를 완료했다.
 
-커밋 후 아래 항목을 최종 응답에서 별도 보고한다.
+- commit hash: `e9c0e98`
+- commit message: `Add raw upload workflow to maintenance analysis`
+- push: `3d60714..e9c0e98 main -> main`
 
-- commit hash
-- push status
-- Vercel deployment status
+## 9. Vercel 배포 확인
 
-## 9. 남은 이슈
+Vercel production deployment 확인 결과:
 
-- Production 반영 여부는 commit/push 후 Vercel deployment에서 추가 확인 필요
+- deployment URL: https://mtbf-dashboard-cuopc9518-gtmc92s-projects.vercel.app
+- deployment id: `dpl_B7F7z2bRecRanh1PPU1bzSwxcDaR`
+- target: production
+- status: Ready
+- alias:
+  - https://mtbf-dashboard.vercel.app
+  - https://mtbf-dashboard-gtmc92s-projects.vercel.app
+  - https://mtbf-dashboard-git-main-gtmc92s-projects.vercel.app
+
+Vercel build log에서 아래 내용을 확인했다.
+
+```text
+Cloning github.com/gtmc92/mtbf-dashboard (Branch: main, Commit: e9c0e98)
+...
+Deployment completed
+status ● Ready
+```
+
+Production `/facility` hydrated UI 검증 결과:
+
+```json
+{
+  "title": 1,
+  "uploadHeading": 1,
+  "downloadButton": 1,
+  "fileInput": 1,
+  "previewButton": 1,
+  "historyText": 1,
+  "revertText": 1,
+  "nonRepairSection": 1,
+  "workTimeChart": 1,
+  "pvrChart": 1,
+  "equipmentWorkType": 1,
+  "uploadAboveAnalysis": true
+}
+```
+
+## 10. 남은 이슈
+
+- 없음
