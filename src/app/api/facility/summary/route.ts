@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -11,13 +12,26 @@ const FACILITY_COMMON_EQUIPMENT = ["공통설비"];
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const yearParam = searchParams.get("year");
+  const monthParam = searchParams.get("month");
+  const equipmentParam = searchParams.get("equipment");
+  const managementTypeParam = searchParams.get("managementType");
 
   const factoryFilters = FACILITY_VISIBLE_FACTORIES.map((f) => ({ equipment: { startsWith: f } }));
   const commonFilters = FACILITY_COMMON_EQUIPMENT.map((e) => ({ equipment: e }));
   const equipmentOR = [...factoryFilters, ...commonFilters];
 
-  const yearFilter = yearParam ? { year: Number(yearParam) } : {};
-  const where = { ...yearFilter, OR: equipmentOR };
+  const scopedWhere: Prisma.RepairTypeRecordWhereInput = { OR: equipmentOR };
+  const filters: Prisma.RepairTypeRecordWhereInput[] = [scopedWhere];
+
+  if (yearParam) filters.push({ year: Number(yearParam) });
+  if (monthParam) filters.push({ month: Number(monthParam) });
+  if (equipmentParam) filters.push({ equipment: equipmentParam });
+  if (managementTypeParam) filters.push({ managementType: managementTypeParam });
+
+  const where: Prisma.RepairTypeRecordWhereInput = { AND: filters };
+  const optionWhere: Prisma.RepairTypeRecordWhereInput = yearParam
+    ? { AND: [scopedWhere, { year: Number(yearParam) }] }
+    : scopedWhere;
 
   const [
     totalAgg,
@@ -30,6 +44,9 @@ export async function GET(req: Request) {
     repairTypeMasters,
     improvementTopRows,
     maintenanceTopRows,
+    monthRows,
+    equipmentRows,
+    managementTypeRows,
   ] = await Promise.all([
     prisma.repairTypeRecord.aggregate({
       where,
@@ -99,6 +116,24 @@ export async function GET(req: Request) {
       },
       select: { equipment: true, durationMin: true, repairType: true, description: true },
     }),
+    prisma.repairTypeRecord.findMany({
+      where: optionWhere,
+      select: { month: true },
+      distinct: ["month"],
+      orderBy: { month: "asc" },
+    }),
+    prisma.repairTypeRecord.findMany({
+      where: optionWhere,
+      select: { equipment: true },
+      distinct: ["equipment"],
+      orderBy: { equipment: "asc" },
+    }),
+    prisma.repairTypeRecord.findMany({
+      where: optionWhere,
+      select: { managementType: true },
+      distinct: ["managementType"],
+      orderBy: { managementType: "asc" },
+    }),
   ]);
 
   // 표시순서 맵 (repairType → displayOrder)
@@ -123,6 +158,13 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     years: yearRows.map((r) => r.year),
+    filters: {
+      months: monthRows.map((r) => r.month),
+      equipment: equipmentRows.map((r) => r.equipment),
+      managementTypes: managementTypeRows
+        .map((r) => r.managementType)
+        .filter((v): v is string => Boolean(v)),
+    },
     total: {
       incidentCount: totalAgg._sum.count ?? 0,
       totalDurationMin: totalAgg._sum.durationMin ?? 0,

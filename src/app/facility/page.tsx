@@ -48,6 +48,11 @@ interface NonRepairItem {
 
 interface FacilitySummary {
   years: number[];
+  filters: {
+    months: number[];
+    equipment: string[];
+    managementTypes: string[];
+  };
   total: { incidentCount: number; totalDurationMin: number };
   byRepairType: RepairTypeStat[];
   byManagementType: ManagementTypeStat[];
@@ -66,20 +71,31 @@ function fmtMin(min: number) {
 export default function FacilityPage() {
   const [data, setData] = useState<FacilitySummary | null>(null);
   const [selectedYear, setSelectedYear] = useState<string>("");
+  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  const [selectedEquipment, setSelectedEquipment] = useState<string>("all");
+  const [selectedManagementType, setSelectedManagementType] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const toggleExpand = (i: number) =>
     setExpandedRows((prev) => {
       const s = new Set(prev);
-      s.has(i) ? s.delete(i) : s.add(i);
+      if (s.has(i)) {
+        s.delete(i);
+      } else {
+        s.add(i);
+      }
       return s;
     });
 
   useEffect(() => {
-    const url = selectedYear
-      ? `/api/facility/summary?year=${selectedYear}`
+    const params = new URLSearchParams();
+    if (selectedYear) params.set("year", selectedYear);
+    if (selectedMonth !== "all") params.set("month", selectedMonth);
+    if (selectedEquipment !== "all") params.set("equipment", selectedEquipment);
+    if (selectedManagementType !== "all") params.set("managementType", selectedManagementType);
+    const url = params.size > 0
+      ? `/api/facility/summary?${params.toString()}`
       : "/api/facility/summary";
-    setLoading(true);
     fetch(url)
       .then((r) => r.json())
       .then((d: FacilitySummary) => {
@@ -90,7 +106,7 @@ export default function FacilityPage() {
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [selectedYear]);
+  }, [selectedYear, selectedMonth, selectedEquipment, selectedManagementType]);
 
   const totalCount = data?.total.incidentCount ?? 0;
   const totalMin = data?.total.totalDurationMin ?? 0;
@@ -122,7 +138,7 @@ export default function FacilityPage() {
           <Link href="/" className="text-gray-400 hover:text-gray-600 text-sm">
             ← 홈
           </Link>
-          <h1 className="text-xl font-bold text-gray-900">시설 현황</h1>
+          <h1 className="text-xl font-bold text-gray-900">유지보수 분석</h1>
         </div>
       </div>
 
@@ -130,25 +146,106 @@ export default function FacilityPage() {
         {/* 연도 필터 */}
         <Card>
           <CardContent className="pt-4">
-            <div className="flex items-center gap-4">
-              <label className="text-xs text-gray-500">연도</label>
-              <Select
-                value={selectedYear}
-                onValueChange={(v) => { if (v) setSelectedYear(v); }}
-              >
-                <SelectTrigger className="w-28">
-                  <span className={selectedYear ? "" : "text-muted-foreground"}>
-                    {selectedYear ? `${selectedYear}년` : "연도 선택"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {(data?.years ?? []).map((y) => (
-                    <SelectItem key={y} value={String(y)}>
-                      {y}년
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">연도</label>
+                <Select
+                  value={selectedYear}
+                  onValueChange={(v) => {
+                    if (v) {
+                      setSelectedYear(v);
+                      setSelectedMonth("all");
+                      setSelectedEquipment("all");
+                      setSelectedManagementType("all");
+                    }
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <span className={selectedYear ? "" : "text-muted-foreground"}>
+                      {selectedYear ? `${selectedYear}년` : "연도 선택"}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(data?.years ?? []).map((y) => (
+                      <SelectItem key={y} value={String(y)}>
+                        {y}년
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">월</label>
+                <Select
+                  value={selectedMonth}
+                  onValueChange={(v) => {
+                    if (v) setSelectedMonth(v);
+                  }}
+                >
+                  <SelectTrigger className="w-28">
+                    <span className={selectedMonth !== "all" ? "" : "text-muted-foreground"}>
+                      {selectedMonth === "all" ? "전체" : `${selectedMonth}월`}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    {(data?.filters.months ?? []).map((m) => (
+                      <SelectItem key={m} value={String(m)}>
+                        {m}월
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">설비/공정</label>
+                <Select
+                  value={selectedEquipment}
+                  onValueChange={(v) => {
+                    if (v) setSelectedEquipment(v);
+                  }}
+                >
+                  <SelectTrigger className="w-44">
+                    <span className={selectedEquipment !== "all" ? "" : "text-muted-foreground"}>
+                      {selectedEquipment === "all" ? "전체" : selectedEquipment}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    {(data?.filters.equipment ?? []).map((equipment) => (
+                      <SelectItem key={equipment} value={equipment}>
+                        {equipment}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-xs text-gray-500">관리구분</label>
+                <Select
+                  value={selectedManagementType}
+                  onValueChange={(v) => {
+                    if (v) setSelectedManagementType(v);
+                  }}
+                >
+                  <SelectTrigger className="w-40">
+                    <span className={selectedManagementType !== "all" ? "" : "text-muted-foreground"}>
+                      {selectedManagementType === "all" ? "전체" : selectedManagementType}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">전체</SelectItem>
+                    {(data?.filters.managementTypes ?? []).map((managementType) => (
+                      <SelectItem key={managementType} value={managementType}>
+                        {managementType}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -269,15 +366,21 @@ export default function FacilityPage() {
               if (total === 0) return null;
               const rRatio = (reactive?.count ?? 0) / total;
               const pRatio = (preventive?.count ?? 0) / total;
+              if (nonRepairRatio > 50) return (
+                <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-5 py-4">
+                  <p className="text-sm font-bold text-indigo-700">Non-Repair 증가 — 개선/투자 활동 증가</p>
+                  <p className="text-xs text-indigo-600 mt-1">일반제작·개발작업·유지보수 비중이 높습니다. 설비 개선 활동과 정기 유지 활동의 투입 현황을 점검하세요.</p>
+                </div>
+              );
               if (rRatio > 0.6) return (
                 <div className="rounded-lg bg-red-50 border border-red-200 px-5 py-4">
-                  <p className="text-sm font-bold text-red-700">⚠ Reactive 중심 운영 — 예방 정비 강화 필요</p>
+                  <p className="text-sm font-bold text-red-700">정지수리 증가 — 설비 신뢰성 저하</p>
                   <p className="text-xs text-red-600 mt-1">정지·가동 수리 비중이 높습니다. 계획 예방보전(PM) 활동을 강화하여 설비 신뢰성을 개선하세요.</p>
                 </div>
               );
               if (pRatio > 0.6) return (
                 <div className="rounded-lg bg-green-50 border border-green-200 px-5 py-4">
-                  <p className="text-sm font-bold text-green-700">✓ Preventive 중심 운영 — 안정적 관리 상태</p>
+                  <p className="text-sm font-bold text-green-700">Preventive 중심 운영 — 안정적 관리 상태</p>
                   <p className="text-xs text-green-600 mt-1">예방·휴무 수리 비중이 높습니다. 현재의 예방보전 체계를 유지하세요.</p>
                 </div>
               );

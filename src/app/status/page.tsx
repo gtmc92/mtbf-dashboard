@@ -250,7 +250,7 @@ export default function StatusPage() {
           <Link href="/" className="text-gray-400 hover:text-gray-600 text-sm">
             ← 홈
           </Link>
-          <h1 className="text-xl font-bold text-gray-900">현황 조회</h1>
+          <h1 className="text-xl font-bold text-gray-900">시설 현황</h1>
         </div>
       </div>
 
