@@ -13,6 +13,7 @@ import { RepairTypePieChart } from "@/components/facility/RepairTypePieChart";
 import { PreventiveReactiveChart } from "@/components/facility/PreventiveReactiveChart";
 import { EquipmentTopChart } from "@/components/facility/EquipmentTopChart";
 import { ProcessStackedChart } from "@/components/facility/ProcessStackedChart";
+import { RawUploadPanel } from "@/components/data-upload/RawUploadPanel";
 
 interface RepairTypeStat {
   repairType: string;
@@ -249,6 +250,15 @@ export default function FacilityPage() {
             </div>
           </CardContent>
         </Card>
+
+        <section aria-labelledby="raw-upload-heading" className="space-y-3">
+          <div>
+            <h2 id="raw-upload-heading" className="text-lg font-bold text-gray-900">
+              원본 데이터 업로드
+            </h2>
+          </div>
+          <RawUploadPanel />
+        </section>
 
         {loading && (
           <div className="text-center text-gray-400 py-20">
