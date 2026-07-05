@@ -16,13 +16,13 @@ const REPAIR_COLORS: Record<string, string> = {
   휴무수리: "#f59e0b",
   가동수리: "#10b981",
   정지수리: "#ef4444",
-  일반제작: "#6366f1",
+  제작설치: "#6366f1",
   개발작업: "#8b5cf6",
   유지보수: "#64748b",
   미분류: "#9ca3af",
 };
 
-const LEGEND_ORDER = ["휴무수리", "보전수리", "가동수리", "정지수리", "일반제작", "개발작업", "유지보수"];
+const LEGEND_ORDER = ["휴무수리", "보전수리", "가동수리", "정지수리", "제작설치", "개발작업", "유지보수"];
 
 export function ProcessStackedChart({ data }: { data: Record<string, unknown>[] }) {
   if (!data.length) return <p className="text-center text-gray-400 text-sm py-10">데이터 없음</p>;

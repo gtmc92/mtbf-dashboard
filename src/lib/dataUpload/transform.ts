@@ -2,6 +2,7 @@ import { resolveHeaders, FIELD_LABELS } from "./columnAliases";
 import { parseDate } from "./dateParse";
 import { parseTimeToMinutes } from "./timeParse";
 import { resolveManagementType } from "./managementType";
+import { normalizeRepairType } from "@/lib/repairTypes";
 import type { ParsedFile, RawCell, RowResult, TransformedRow, TransformResult } from "./types";
 
 function cellToString(raw: RawCell): string | null {
@@ -97,7 +98,7 @@ export function transformRows(
       warnings.push("조치인원 누락 - 기본값 1 적용");
     }
 
-    const repairType = cellToString(get(row, "repairType"));
+    const repairType = normalizeRepairType(cellToString(get(row, "repairType")));
     if (!repairType) {
       warnings.push("수리유형 없음");
     }

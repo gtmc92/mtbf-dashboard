@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import {
+  FABRICATION_INSTALL_REPAIR_TYPE,
+  LEGACY_FABRICATION_REPAIR_TYPE,
+  normalizeRepairType,
+} from "@/lib/repairTypes";
 import type { Prisma } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
@@ -94,12 +99,12 @@ export async function GET(req: Request) {
     }),
     // 표시순서 lookup
     prisma.repairTypeMaster.findMany({ orderBy: { displayOrder: "asc" } }),
-    // 개선작업 TOP (일반제작 + 개발작업) — durationMin 기준
+    // 개선작업 TOP (제작설치 + 개발작업) — durationMin 기준
     prisma.repairTypeRecord.findMany({
       where: {
         AND: [
           where,
-          { repairType: { in: ["일반제작", "개발작업"] } },
+          { repairType: { in: [FABRICATION_INSTALL_REPAIR_TYPE, LEGACY_FABRICATION_REPAIR_TYPE, "개발작업"] } },
           { durationMin: { not: null } },
         ],
       },
@@ -149,7 +154,8 @@ export async function GET(req: Request) {
   for (const row of equipmentRepairTypeRows) {
     if (!top10.includes(row.equipment)) continue;
     if (!pivotMap[row.equipment]) pivotMap[row.equipment] = {};
-    pivotMap[row.equipment][row.repairType ?? "미분류"] = row._sum.count ?? 0;
+    const repairType = normalizeRepairType(row.repairType) ?? "미분류";
+    pivotMap[row.equipment][repairType] = (pivotMap[row.equipment][repairType] ?? 0) + (row._sum.count ?? 0);
   }
   const byEquipmentRepairType = top10.map((eq) => ({
     equipment: eq,
@@ -169,12 +175,19 @@ export async function GET(req: Request) {
       incidentCount: totalAgg._sum.count ?? 0,
       totalDurationMin: totalAgg._sum.durationMin ?? 0,
     },
-    byRepairType: repairTypeGroups
-      .map((g) => ({
-        repairType: g.repairType ?? "미분류",
-        count: g._sum.count ?? 0,
-        durationMin: g._sum.durationMin ?? 0,
-      }))
+    byRepairType: Object.values(
+      repairTypeGroups.reduce<Record<string, { repairType: string; count: number; durationMin: number }>>(
+        (acc, g) => {
+          const repairType = normalizeRepairType(g.repairType) ?? "미분류";
+          const current = acc[repairType] ?? { repairType, count: 0, durationMin: 0 };
+          current.count += g._sum.count ?? 0;
+          current.durationMin += g._sum.durationMin ?? 0;
+          acc[repairType] = current;
+          return acc;
+        },
+        {}
+      )
+    )
       .sort((a, b) => {
         const oa = displayOrderMap.get(a.repairType) ?? 99;
         const ob = displayOrderMap.get(b.repairType) ?? 99;
@@ -197,7 +210,7 @@ export async function GET(req: Request) {
       .map((r) => ({
         equipment: r.equipment,
         repairTime: r.repairTime ?? r.durationMin ?? 0,
-        repairType: r.repairType ?? "미분류",
+        repairType: normalizeRepairType(r.repairType) ?? "미분류",
         description: r.description ?? "",
       })),
     improvementTopItems: improvementTopRows
@@ -206,7 +219,7 @@ export async function GET(req: Request) {
       .map((r) => ({
         equipment: r.equipment,
         durationMin: r.durationMin ?? 0,
-        repairType: r.repairType ?? "미분류",
+        repairType: normalizeRepairType(r.repairType) ?? "미분류",
         description: r.description ?? "",
       })),
     maintenanceTopItems: maintenanceTopRows

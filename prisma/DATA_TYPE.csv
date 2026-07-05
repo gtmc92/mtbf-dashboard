@@ -1,8 +1,8 @@
-﻿수리유형,관리구분,표시순서
+수리유형,관리구분,표시순서
 휴무수리,Preventive,1
 보전수리,Preventive,2
 가동수리,Reactive,3
 정지수리,Reactive,4
-일반제작,Non-Repair,5
+제작설치,Non-Repair,5
 개발작업,Non-Repair,6
 유지보수,Non-Repair,7

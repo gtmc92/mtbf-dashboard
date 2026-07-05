@@ -9,6 +9,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import Link from "next/link";
+import { FABRICATION_INSTALL_REPAIR_TYPE, isImprovementRepairType } from "@/lib/repairTypes";
 import { RepairTypePieChart } from "@/components/facility/RepairTypePieChart";
 import { PreventiveReactiveChart } from "@/components/facility/PreventiveReactiveChart";
 import { EquipmentTopChart } from "@/components/facility/EquipmentTopChart";
@@ -133,7 +134,7 @@ export function MaintenanceAnalysisView({
 
   // 비수리 집계 (byRepairType에서 계산)
   const improvementMin = (data?.byRepairType ?? [])
-    .filter((r) => ["일반제작", "개발작업"].includes(r.repairType))
+    .filter((r) => isImprovementRepairType(r.repairType))
     .reduce((s, r) => s + r.durationMin, 0);
   const maintenanceMin = (data?.byRepairType ?? [])
     .find((r) => r.repairType === "유지보수")?.durationMin ?? 0;
@@ -345,7 +346,7 @@ export function MaintenanceAnalysisView({
                   <p className="text-xs text-gray-400 mt-1">전체 {totalCount.toLocaleString()}건 중 {nonRepairCount.toLocaleString()}건</p>
                 </div>
                 <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
-                  <p className="text-xs text-gray-500 mb-1">개선작업 시간 (일반제작+개발작업)</p>
+                  <p className="text-xs text-gray-500 mb-1">개선작업 시간 (제작설치+개발작업)</p>
                   <p className="text-2xl font-bold text-indigo-600">{fmtMin(improvementMin)}</p>
                   <p className="text-xs text-gray-400 mt-1">{Math.round(improvementMin).toLocaleString()}분</p>
                 </div>
@@ -359,8 +360,8 @@ export function MaintenanceAnalysisView({
               {/* 비수리 유형 설명 */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <div className="rounded-lg border-l-4 border-indigo-400 bg-white px-3 py-2">
-                  <p className="text-sm font-semibold text-indigo-700">일반제작</p>
-                  <p className="text-xs text-indigo-600 mt-0.5">설비·치공구 신규 제작 활동</p>
+                  <p className="text-sm font-semibold text-indigo-700">제작설치</p>
+                  <p className="text-xs text-indigo-600 mt-0.5">설비·치공구 제작 및 설치 활동</p>
                 </div>
                 <div className="rounded-lg border-l-4 border-purple-400 bg-white px-3 py-2">
                   <p className="text-sm font-semibold text-purple-700">개발작업</p>
@@ -382,7 +383,7 @@ export function MaintenanceAnalysisView({
               if (nonRepairRatio > 50) return (
                 <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-5 py-4">
                   <p className="text-sm font-bold text-indigo-700">Non-Repair 증가 — 개선/투자 활동 증가</p>
-                  <p className="text-xs text-indigo-600 mt-1">일반제작·개발작업·유지보수 비중이 높습니다. 설비 개선 활동과 정기 유지 활동의 투입 현황을 점검하세요.</p>
+                  <p className="text-xs text-indigo-600 mt-1">제작설치·개발작업·유지보수 비중이 높습니다. 설비 개선 활동과 정기 유지 활동의 투입 현황을 점검하세요.</p>
                 </div>
               );
               if (rRatio > 0.6) return (
@@ -493,11 +494,11 @@ export function MaintenanceAnalysisView({
                 </CardContent>
               </Card>
             )}
-            {/* 개선작업 TOP (일반제작+개발작업) */}
+            {/* 개선작업 TOP (제작설치+개발작업) */}
             {data.improvementTopItems.length > 0 && (
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">개선작업 최장 시간 TOP 10 (일반제작·개발작업)</CardTitle>
+                  <CardTitle className="text-base">개선작업 최장 시간 TOP 10 (제작설치·개발작업)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -516,7 +517,7 @@ export function MaintenanceAnalysisView({
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.repairType === "일반제작" ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.repairType === FABRICATION_INSTALL_REPAIR_TYPE ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
                                 {r.repairType}
                               </span>
                               <span className="text-xs text-gray-500">{fmtMin(r.durationMin)}</span>
