@@ -68,7 +68,7 @@ Evidence:
 
 Production route verification is required after deployment.
 
-### Production Browser Check
+### Final Production Browser Check
 
 Base URL:
 
@@ -126,14 +126,29 @@ Home route result:
 
 ## Commit / Deployment
 
-- Commit: `34d95da`
-- Message: `Split maintenance analysis admin route`
-- Push: `origin/main` updated from `843d26b` to `34d95da`
-- Vercel deployment: `dpl_BfKFdsBNUiU7AgcWcXHGFdiVPAuv`
-- Deployment URL: `https://mtbf-dashboard-mn4eissgf-gtmc92s-projects.vercel.app`
+- Implementation commit: `34d95da`
+- Implementation message: `Split maintenance analysis admin route`
+- Report update commit: `3b3cc3f`
+- Report update message: `Update facility route split report`
+- Push status:
+  - `843d26b..34d95da main -> main`
+  - `34d95da..3b3cc3f main -> main`
+- Implementation Vercel deployment: `dpl_BfKFdsBNUiU7AgcWcXHGFdiVPAuv`
+- Implementation deployment URL: `https://mtbf-dashboard-mn4eissgf-gtmc92s-projects.vercel.app`
+- Final latest Vercel deployment after report update: `dpl_6AuwSwpfwbb5LpN8qU9zFseGWoS8`
+- Final latest deployment URL: `https://mtbf-dashboard-kss9iluog-gtmc92s-projects.vercel.app`
 - Production alias: `https://mtbf-dashboard.vercel.app`
 - Status: Ready
-- Build log evidence: `Cloning github.com/gtmc92/mtbf-dashboard (Branch: main, Commit: 34d95da)`
+- Build log evidence:
+  - `Cloning github.com/gtmc92/mtbf-dashboard (Branch: main, Commit: 34d95da)`
+  - `Cloning github.com/gtmc92/mtbf-dashboard (Branch: main, Commit: 3b3cc3f)`
+- Final deployment routes generated:
+  - `/facility`
+  - `/facility/admin`
+
+## Final Result
+
+Complete. The public maintenance analysis route is now analysis-only, and the direct admin route contains the upload workflow plus the same analysis dashboard. The final production alias was verified after the latest report-update deployment.
 
 ## Remaining Actions
 
