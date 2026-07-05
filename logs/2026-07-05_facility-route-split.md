@@ -68,12 +68,73 @@ Evidence:
 
 Production route verification is required after deployment.
 
+### Production Browser Check
+
+Base URL:
+
+```text
+https://mtbf-dashboard.vercel.app
+```
+
+Tool: Playwright with system Chrome.
+
+`/facility` result:
+
+```json
+{
+  "title": "유지보수 분석",
+  "hasLoading": false,
+  "hasUploadHeading": false,
+  "hasTemplateDownload": false,
+  "fileInputs": 0,
+  "hasPreviewButton": false,
+  "hasHistory": false,
+  "hasRevert": false,
+  "hasNonRepair": true,
+  "hasWorkTimeChart": true,
+  "hasPvrChart": true,
+  "hasTop10": true
+}
+```
+
+`/facility/admin` result:
+
+```json
+{
+  "title": "유지보수 분석 · Admin",
+  "hasLoading": false,
+  "hasUploadHeading": true,
+  "hasTemplateDownload": true,
+  "fileInputs": 1,
+  "hasPreviewButton": true,
+  "hasHistory": true,
+  "hasRevert": true,
+  "hasNonRepair": true,
+  "hasWorkTimeChart": true,
+  "hasPvrChart": true,
+  "hasTop10": true
+}
+```
+
+Home route result:
+
+```json
+{
+  "homeHref": "/facility"
+}
+```
+
 ## Commit / Deployment
 
-Pending at initial report creation.
+- Commit: `34d95da`
+- Message: `Split maintenance analysis admin route`
+- Push: `origin/main` updated from `843d26b` to `34d95da`
+- Vercel deployment: `dpl_BfKFdsBNUiU7AgcWcXHGFdiVPAuv`
+- Deployment URL: `https://mtbf-dashboard-mn4eissgf-gtmc92s-projects.vercel.app`
+- Production alias: `https://mtbf-dashboard.vercel.app`
+- Status: Ready
+- Build log evidence: `Cloning github.com/gtmc92/mtbf-dashboard (Branch: main, Commit: 34d95da)`
 
 ## Remaining Actions
 
-- Commit and push the route split.
-- Confirm Vercel production deployment.
-- Verify production `/facility`, `/facility/admin`, and home route behavior.
+None.
