@@ -9,7 +9,7 @@ import {
   SelectTrigger,
 } from "@/components/ui/select";
 import Link from "next/link";
-import { FABRICATION_INSTALL_REPAIR_TYPE, isImprovementRepairType } from "@/lib/repairTypes";
+import { FABRICATION_INSTALL_REPAIR_TYPE } from "@/lib/repairTypes";
 import { RepairTypePieChart } from "@/components/facility/RepairTypePieChart";
 import { PreventiveReactiveChart } from "@/components/facility/PreventiveReactiveChart";
 import { EquipmentTopChart } from "@/components/facility/EquipmentTopChart";
@@ -36,6 +36,8 @@ interface EquipmentStat {
 interface TopRepairItem {
   equipment: string;
   repairTime: number;
+  durationMin: number;
+  technicianCount: number;
   repairType: string;
   description: string;
 }
@@ -43,8 +45,21 @@ interface TopRepairItem {
 interface NonRepairItem {
   equipment: string;
   durationMin: number;
+  technicianCount: number;
   repairType: string;
   description: string;
+}
+
+interface MtbfMttrComparison {
+  year: number;
+  previousYear: number;
+  endMonth: number;
+  mtbf: number | null;
+  mttr: number | null;
+  previousMtbf: number | null;
+  previousMttr: number | null;
+  mtbfChangePct: number | null;
+  mttrChangePct: number | null;
 }
 
 interface FacilitySummary {
@@ -60,8 +75,10 @@ interface FacilitySummary {
   topEquipment: EquipmentStat[];
   byEquipmentRepairType: Record<string, unknown>[];
   topRepairs: TopRepairItem[];
-  improvementTopItems: NonRepairItem[];
+  fabricationInstallTopItems: NonRepairItem[];
+  developmentTopItems: NonRepairItem[];
   maintenanceTopItems: NonRepairItem[];
+  mtbfMttrComparison: MtbfMttrComparison;
 }
 
 interface MaintenanceAnalysisViewProps {
@@ -73,6 +90,20 @@ interface MaintenanceAnalysisViewProps {
 function fmtMin(min: number) {
   if (min >= 60) return `${(min / 60).toFixed(1)}h`;
   return `${Math.round(min)}분`;
+}
+
+function fmtRatio(count: number, total: number) {
+  return total > 0 ? `${((count / total) * 100).toFixed(1)}%` : "0.0%";
+}
+
+function fmtMetric(value: number | null, digits: number) {
+  return value === null ? "-" : `${value.toFixed(digits)}h`;
+}
+
+function changeLabel(value: number | null) {
+  if (value === null) return "-";
+  if (value === 0) return "0.0%";
+  return `${value > 0 ? "↑" : "↓"}${Math.abs(value).toFixed(1)}%`;
 }
 
 export function MaintenanceAnalysisView({
@@ -130,17 +161,73 @@ export function MaintenanceAnalysisView({
   const nonRepairStat = data?.byManagementType.find((m) =>
     m.managementType?.toLowerCase().includes("non-repair")
   );
-  const prTotal = (preventive?.count ?? 0) + (reactive?.count ?? 0);
 
-  // 비수리 집계 (byRepairType에서 계산)
-  const improvementMin = (data?.byRepairType ?? [])
-    .filter((r) => isImprovementRepairType(r.repairType))
-    .reduce((s, r) => s + r.durationMin, 0);
-  const maintenanceMin = (data?.byRepairType ?? [])
-    .find((r) => r.repairType === "유지보수")?.durationMin ?? 0;
+  const repairTypeCount = (repairType: string) =>
+    data?.byRepairType.find((r) => r.repairType === repairType)?.count ?? 0;
   const nonRepairCount = nonRepairStat?.count ?? 0;
-  const nonRepairRatio =
-    totalCount > 0 ? Math.round((nonRepairCount / totalCount) * 1000) / 10 : 0;
+  const fabricationInstallCount = repairTypeCount(FABRICATION_INSTALL_REPAIR_TYPE);
+  const developmentCount = repairTypeCount("개발작업");
+  const maintenanceCount = repairTypeCount("유지보수");
+  const mtbfMttr = data?.mtbfMttrComparison;
+  const renderTopWorkSection = (
+    title: string,
+    items: NonRepairItem[],
+    rowOffset: number,
+    rowClass: string,
+    badgeClass: string,
+  ) => {
+    if (items.length === 0) return null;
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">{title}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {items.map((r, i) => {
+              const rowKey = rowOffset + i;
+              const isExpanded = expandedRows.has(rowKey);
+              const LIMIT = 60;
+              const isLong = r.description.length > LIMIT;
+              const displayText = isExpanded || !isLong
+                ? r.description
+                : r.description.slice(0, LIMIT) + "…";
+              return (
+                <div key={`${r.equipment}-${i}`} className={`flex gap-3 rounded-lg border px-4 py-3 ${rowClass}`}>
+                  <div className="flex-shrink-0 w-6 h-6 rounded-full bg-white/80 text-gray-600 text-xs font-bold flex items-center justify-center mt-0.5">
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>{r.repairType}</span>
+                      <span className="text-xs text-gray-500">총 작업시간 {fmtMin(r.durationMin)}</span>
+                      <span className="text-xs text-gray-500">투입인원 {r.technicianCount.toLocaleString()}명</span>
+                    </div>
+                    {r.description ? (
+                      <>
+                        <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
+                        {isLong && (
+                          <button
+                            className="text-xs text-blue-500 mt-1 hover:underline"
+                            onClick={() => toggleExpand(rowKey)}
+                          >
+                            {isExpanded ? "접기" : "더보기"}
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-xs text-gray-400">-</p>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -273,43 +360,76 @@ export function MaintenanceAnalysisView({
 
         {!loading && data && (
           <>
-            {/* KPI 카드 */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">시설팀 작업 요약</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="rounded-lg border bg-white px-4 py-3">
+                    <p className="text-xs text-gray-500 mb-1">시설팀 총 작업건수</p>
+                    <p className="text-2xl font-bold text-blue-600">{totalCount.toLocaleString()}</p>
+                    <p className="text-xs text-gray-400 mt-1">Preventive · Reactive · Non-Repair 포함</p>
+                  </div>
+                  <div className="rounded-lg border bg-white px-4 py-3">
+                    <p className="text-xs text-gray-500 mb-1">시설팀 총 작업시간</p>
+                    <p className="text-2xl font-bold text-orange-500">{fmtMin(totalMin)}</p>
+                    <p className="text-xs text-gray-400 mt-1">{Math.round(totalMin).toLocaleString()}분</p>
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-sm font-semibold text-gray-700 mb-2">작업유형 현황</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="rounded-lg border bg-green-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-green-700">Preventive</p>
+                      <p className="mt-2 text-2xl font-bold text-green-700">{(preventive?.count ?? 0).toLocaleString()}건</p>
+                      <p className="text-xs text-green-600 mt-1">{fmtRatio(preventive?.count ?? 0, totalCount)}</p>
+                    </div>
+                    <div className="rounded-lg border bg-red-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-red-700">Reactive</p>
+                      <p className="mt-2 text-2xl font-bold text-red-700">{(reactive?.count ?? 0).toLocaleString()}건</p>
+                      <p className="text-xs text-red-600 mt-1">{fmtRatio(reactive?.count ?? 0, totalCount)}</p>
+                    </div>
+                    <div className="rounded-lg border bg-indigo-50 px-4 py-3">
+                      <p className="text-sm font-semibold text-indigo-700">Non-Repair</p>
+                      <p className="mt-2 text-2xl font-bold text-indigo-700">{nonRepairCount.toLocaleString()}건</p>
+                      <p className="text-xs text-indigo-600 mt-1">{fmtRatio(nonRepairCount, totalCount)}</p>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {mtbfMttr && (
               <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">총 사고·수리 건수</p>
-                  <p className="text-2xl font-bold text-blue-600">{totalCount.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1">건</p>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    MTBF / MTTR 동년 누적 비교
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="rounded-lg border bg-white px-4 py-3">
+                      <p className="text-xs text-gray-500 mb-1">MTBF · {mtbfMttr.year}년 1월~{mtbfMttr.endMonth}월</p>
+                      <p className="text-2xl font-bold text-blue-600">{fmtMetric(mtbfMttr.mtbf, 1)}</p>
+                      <p className={`text-xs mt-1 ${(mtbfMttr.mtbfChangePct ?? 0) >= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {changeLabel(mtbfMttr.mtbfChangePct)}
+                        <span className="text-gray-400 ml-1">(전년 동기 {fmtMetric(mtbfMttr.previousMtbf, 1)})</span>
+                      </p>
+                    </div>
+                    <div className="rounded-lg border bg-white px-4 py-3">
+                      <p className="text-xs text-gray-500 mb-1">MTTR · {mtbfMttr.year}년 1월~{mtbfMttr.endMonth}월</p>
+                      <p className="text-2xl font-bold text-orange-500">{fmtMetric(mtbfMttr.mttr, 2)}</p>
+                      <p className={`text-xs mt-1 ${(mtbfMttr.mttrChangePct ?? 0) <= 0 ? "text-green-600" : "text-red-600"}`}>
+                        {changeLabel(mtbfMttr.mttrChangePct)}
+                        <span className="text-gray-400 ml-1">(전년 동기 {fmtMetric(mtbfMttr.previousMttr, 2)})</span>
+                      </p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">총 수리 시간</p>
-                  <p className="text-2xl font-bold text-orange-500">{fmtMin(totalMin)}</p>
-                  <p className="text-xs text-gray-400 mt-1">{Math.round(totalMin).toLocaleString()}분</p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">Preventive</p>
-                  <p className="text-2xl font-bold text-green-600">{preventive?.count.toLocaleString() ?? 0}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {fmtMin(preventive?.durationMin ?? 0)}
-                    {prTotal > 0 && ` · ${(((preventive?.count ?? 0) / prTotal) * 100).toFixed(1)}%`}
-                  </p>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="pt-4">
-                  <p className="text-xs text-gray-500 mb-1">Reactive</p>
-                  <p className="text-2xl font-bold text-red-500">{reactive?.count.toLocaleString() ?? 0}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {fmtMin(reactive?.durationMin ?? 0)}
-                    {prTotal > 0 && ` · ${(((reactive?.count ?? 0) / prTotal) * 100).toFixed(1)}%`}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            )}
 
             {/* 수리 유형 의미 설명 */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -334,42 +454,27 @@ export function MaintenanceAnalysisView({
             {/* ── 비수리 영역 (Non-Repair) ── */}
             <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-5 py-4">
               <p className="text-sm font-bold text-indigo-800 mb-3">
-                설비 개선 &amp; 유지보수 활동 (Non-Repair)
+                Non-Repair 작업
                 <span className="ml-2 text-xs font-normal text-indigo-500">MTBF/MTTR 계산에서 제외된 영역</span>
               </p>
 
-              {/* 비수리 KPI 카드 3개 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
                 <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
-                  <p className="text-xs text-gray-500 mb-1">비수리 작업 비율</p>
-                  <p className="text-2xl font-bold text-indigo-600">{nonRepairRatio.toFixed(1)}<span className="text-sm ml-1">%</span></p>
-                  <p className="text-xs text-gray-400 mt-1">전체 {totalCount.toLocaleString()}건 중 {nonRepairCount.toLocaleString()}건</p>
+                  <p className="text-sm font-semibold text-indigo-700">Non-Repair</p>
+                  <p className="mt-2 text-2xl font-bold text-indigo-600">{nonRepairCount.toLocaleString()}건</p>
+                  <p className="text-xs text-indigo-500 mt-1">{fmtRatio(nonRepairCount, totalCount)}</p>
                 </div>
                 <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
-                  <p className="text-xs text-gray-500 mb-1">개선작업 시간 (제작설치+개발작업)</p>
-                  <p className="text-2xl font-bold text-indigo-600">{fmtMin(improvementMin)}</p>
-                  <p className="text-xs text-gray-400 mt-1">{Math.round(improvementMin).toLocaleString()}분</p>
-                </div>
-                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
-                  <p className="text-xs text-gray-500 mb-1">유지보수 시간</p>
-                  <p className="text-2xl font-bold text-slate-600">{fmtMin(maintenanceMin)}</p>
-                  <p className="text-xs text-gray-400 mt-1">{Math.round(maintenanceMin).toLocaleString()}분</p>
-                </div>
-              </div>
-
-              {/* 비수리 유형 설명 */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <div className="rounded-lg border-l-4 border-indigo-400 bg-white px-3 py-2">
                   <p className="text-sm font-semibold text-indigo-700">제작설치</p>
-                  <p className="text-xs text-indigo-600 mt-0.5">설비·치공구 제작 및 설치 활동</p>
+                  <p className="mt-2 text-xl font-bold text-indigo-600">{fabricationInstallCount.toLocaleString()}건</p>
                 </div>
-                <div className="rounded-lg border-l-4 border-purple-400 bg-white px-3 py-2">
+                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
                   <p className="text-sm font-semibold text-purple-700">개발작업</p>
-                  <p className="text-xs text-purple-600 mt-0.5">공정 개선 및 기술 개발 활동</p>
+                  <p className="mt-2 text-xl font-bold text-purple-600">{developmentCount.toLocaleString()}건</p>
                 </div>
-                <div className="rounded-lg border-l-4 border-slate-400 bg-white px-3 py-2">
+                <div className="rounded-lg bg-white border border-indigo-100 px-4 py-3">
                   <p className="text-sm font-semibold text-slate-700">유지보수</p>
-                  <p className="text-xs text-slate-600 mt-0.5">설비 정기 점검 및 유지 활동</p>
+                  <p className="mt-2 text-xl font-bold text-slate-600">{maintenanceCount.toLocaleString()}건</p>
                 </div>
               </div>
             </div>
@@ -380,7 +485,7 @@ export function MaintenanceAnalysisView({
               if (total === 0) return null;
               const rRatio = (reactive?.count ?? 0) / total;
               const pRatio = (preventive?.count ?? 0) / total;
-              if (nonRepairRatio > 50) return (
+              if (nonRepairCount / totalCount > 0.5) return (
                 <div className="rounded-lg bg-indigo-50 border border-indigo-200 px-5 py-4">
                   <p className="text-sm font-bold text-indigo-700">Non-Repair 증가 — 개선/투자 활동 증가</p>
                   <p className="text-xs text-indigo-600 mt-1">제작설치·개발작업·유지보수 비중이 높습니다. 설비 개선 활동과 정기 유지 활동의 투입 현황을 점검하세요.</p>
@@ -446,154 +551,33 @@ export function MaintenanceAnalysisView({
               </Card>
             </div>
 
-            {/* 정지수리 기준 최장 수리 TOP 10 */}
-            {data.topRepairs.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">정지수리 기준 최장 수리 TOP 10</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {data.topRepairs.map((r, i) => {
-                      const isExpanded = expandedRows.has(i);
-                      const LIMIT = 60;
-                      const isLong = r.description.length > LIMIT;
-                      const displayText = isExpanded || !isLong
-                        ? r.description
-                        : r.description.slice(0, LIMIT) + "…";
-                      return (
-                        <div key={i} className="flex gap-3 rounded-lg border border-gray-100 bg-white px-4 py-3">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 text-gray-600 text-xs font-bold flex items-center justify-center mt-0.5">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="font-medium text-sm text-gray-800">{r.equipment}</span>
-                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-red-100 text-red-700">정지수리</span>
-                            </div>
-                            {r.description ? (
-                              <>
-                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
-                                {isLong && (
-                                  <button
-                                    className="text-xs text-blue-500 mt-1 hover:underline"
-                                    onClick={() => toggleExpand(i)}
-                                  >
-                                    {isExpanded ? "접기" : "더보기"}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-gray-400">—</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+            {renderTopWorkSection(
+              "정지수리 TOP 10",
+              data.topRepairs,
+              0,
+              "border-red-100 bg-red-50",
+              "bg-red-100 text-red-700"
             )}
-            {/* 개선작업 TOP (제작설치+개발작업) */}
-            {data.improvementTopItems.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">개선작업 최장 시간 TOP 10 (제작설치·개발작업)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {data.improvementTopItems.map((r, i) => {
-                      const isExpanded = expandedRows.has(1000 + i);
-                      const LIMIT = 60;
-                      const isLong = r.description.length > LIMIT;
-                      const displayText = isExpanded || !isLong
-                        ? r.description
-                        : r.description.slice(0, LIMIT) + "…";
-                      return (
-                        <div key={i} className="flex gap-3 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center mt-0.5">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
-                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.repairType === FABRICATION_INSTALL_REPAIR_TYPE ? "bg-indigo-100 text-indigo-700" : "bg-purple-100 text-purple-700"}`}>
-                                {r.repairType}
-                              </span>
-                              <span className="text-xs text-gray-500">{fmtMin(r.durationMin)}</span>
-                            </div>
-                            {r.description ? (
-                              <>
-                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
-                                {isLong && (
-                                  <button
-                                    className="text-xs text-blue-500 mt-1 hover:underline"
-                                    onClick={() => toggleExpand(1000 + i)}
-                                  >
-                                    {isExpanded ? "접기" : "더보기"}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-gray-400">—</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+            {renderTopWorkSection(
+              "제작설치 TOP 10",
+              data.fabricationInstallTopItems,
+              1000,
+              "border-indigo-100 bg-indigo-50",
+              "bg-indigo-100 text-indigo-700"
             )}
-
-            {/* 유지보수 TOP */}
-            {data.maintenanceTopItems.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">유지보수 최장 시간 TOP 10</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {data.maintenanceTopItems.map((r, i) => {
-                      const isExpanded = expandedRows.has(2000 + i);
-                      const LIMIT = 60;
-                      const isLong = r.description.length > LIMIT;
-                      const displayText = isExpanded || !isLong
-                        ? r.description
-                        : r.description.slice(0, LIMIT) + "…";
-                      return (
-                        <div key={i} className="flex gap-3 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3">
-                          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-xs font-bold flex items-center justify-center mt-0.5">
-                            {i + 1}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
-                              <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-slate-200 text-slate-700">유지보수</span>
-                              <span className="text-xs text-gray-500">{fmtMin(r.durationMin)}</span>
-                            </div>
-                            {r.description ? (
-                              <>
-                                <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
-                                {isLong && (
-                                  <button
-                                    className="text-xs text-blue-500 mt-1 hover:underline"
-                                    onClick={() => toggleExpand(2000 + i)}
-                                  >
-                                    {isExpanded ? "접기" : "더보기"}
-                                  </button>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-xs text-gray-400">—</p>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+            {renderTopWorkSection(
+              "개발작업 TOP 10",
+              data.developmentTopItems,
+              2000,
+              "border-purple-100 bg-purple-50",
+              "bg-purple-100 text-purple-700"
+            )}
+            {renderTopWorkSection(
+              "유지보수 TOP 10",
+              data.maintenanceTopItems,
+              3000,
+              "border-slate-100 bg-slate-50",
+              "bg-slate-200 text-slate-700"
             )}
           </>
         )}

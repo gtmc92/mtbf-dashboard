@@ -14,6 +14,70 @@ const FACILITY_VISIBLE_FACTORIES = ["F2"];
 // 공장 prefix 없이 저장된 공통설비 (F2 소속으로 취급). 확장 시 배열에 추가.
 const FACILITY_COMMON_EQUIPMENT = ["공통설비"];
 
+type TopWorkRow = {
+  year: number;
+  month: number;
+  day: number;
+  equipment: string;
+  durationMin: number | null;
+  technicianCount: number | null;
+  repairType: string | null;
+  description: string | null;
+};
+
+function groupTopWorkItems(rows: TopWorkRow[]) {
+  const map = new Map<
+    string,
+    {
+      year: number;
+      month: number;
+      day: number;
+      equipment: string;
+      repairType: string;
+      description: string;
+      durationMin: number;
+      technicianCount: number;
+      count: number;
+    }
+  >();
+
+  for (const row of rows) {
+    const repairType = normalizeRepairType(row.repairType) ?? "미분류";
+    const description = row.description ?? "";
+    const key = [row.year, row.month, row.day, row.equipment, repairType, description].join("::");
+    const current = map.get(key) ?? {
+      year: row.year,
+      month: row.month,
+      day: row.day,
+      equipment: row.equipment,
+      repairType,
+      description,
+      durationMin: 0,
+      technicianCount: 0,
+      count: 1,
+    };
+    current.durationMin += row.durationMin ?? 0;
+    current.technicianCount += row.technicianCount ?? 0;
+    map.set(key, current);
+  }
+
+  return [...map.values()]
+    .sort((a, b) => b.durationMin - a.durationMin)
+    .slice(0, 10);
+}
+
+function calcMtbfMttr(opMin: number, stopCount: number, stopMin: number) {
+  return {
+    mtbf: stopCount > 0 ? Math.round((opMin / stopCount / 60) * 10) / 10 : null,
+    mttr: stopCount > 0 ? Math.round((stopMin / stopCount / 60) * 100) / 100 : null,
+  };
+}
+
+function percentChange(current: number | null, previous: number | null) {
+  if (current === null || previous === null || previous === 0) return null;
+  return Math.round(((current - previous) / previous) * 1000) / 10;
+}
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const yearParam = searchParams.get("year");
@@ -38,6 +102,9 @@ export async function GET(req: Request) {
     ? { AND: [scopedWhere, { year: Number(yearParam) }] }
     : scopedWhere;
 
+  const selectedYear = yearParam ? Number(yearParam) : null;
+  const selectedMonth = monthParam ? Number(monthParam) : null;
+
   const [
     totalAgg,
     repairTypeGroups,
@@ -45,13 +112,13 @@ export async function GET(req: Request) {
     equipmentGroups,
     equipmentRepairTypeRows,
     yearRows,
-    topRepairRows,
     repairTypeMasters,
     improvementTopRows,
     maintenanceTopRows,
     monthRows,
     equipmentRows,
     managementTypeRows,
+    latestRepairYear,
   ] = await Promise.all([
     prisma.repairTypeRecord.aggregate({
       where,
@@ -85,18 +152,6 @@ export async function GET(req: Request) {
       distinct: ["year"],
       orderBy: { year: "asc" },
     }),
-    // 정지수리 기준 수리시간(인원 가중치) TOP10 — repairTime 없는 경우 durationMin으로 fallback
-    // AND로 묶어야 equipment OR 필터가 덮어쓰이지 않음
-    prisma.repairTypeRecord.findMany({
-      where: {
-        AND: [
-          where,
-          { repairType: "정지수리" },
-          { OR: [{ repairTime: { not: null } }, { durationMin: { not: null } }] },
-        ],
-      },
-      select: { equipment: true, repairTime: true, durationMin: true, repairType: true, description: true },
-    }),
     // 표시순서 lookup
     prisma.repairTypeMaster.findMany({ orderBy: { displayOrder: "asc" } }),
     // 개선작업 TOP (제작설치 + 개발작업) — durationMin 기준
@@ -108,7 +163,16 @@ export async function GET(req: Request) {
           { durationMin: { not: null } },
         ],
       },
-      select: { equipment: true, durationMin: true, repairType: true, description: true },
+      select: {
+        year: true,
+        month: true,
+        day: true,
+        equipment: true,
+        durationMin: true,
+        technicianCount: true,
+        repairType: true,
+        description: true,
+      },
     }),
     // 유지보수 TOP — durationMin 기준
     prisma.repairTypeRecord.findMany({
@@ -119,7 +183,16 @@ export async function GET(req: Request) {
           { durationMin: { not: null } },
         ],
       },
-      select: { equipment: true, durationMin: true, repairType: true, description: true },
+      select: {
+        year: true,
+        month: true,
+        day: true,
+        equipment: true,
+        durationMin: true,
+        technicianCount: true,
+        repairType: true,
+        description: true,
+      },
     }),
     prisma.repairTypeRecord.findMany({
       where: optionWhere,
@@ -139,7 +212,67 @@ export async function GET(req: Request) {
       distinct: ["managementType"],
       orderBy: { managementType: "asc" },
     }),
+    prisma.repairTypeRecord.aggregate({
+      where: scopedWhere,
+      _max: { year: true },
+    }),
   ]);
+
+  const comparisonYear = selectedYear ?? latestRepairYear._max.year ?? new Date().getFullYear();
+  const periodMonthAgg = selectedMonth
+    ? null
+    : await prisma.repairTypeRecord.aggregate({
+        where: { AND: [scopedWhere, { year: comparisonYear }] },
+        _max: { month: true },
+      });
+  const comparisonEndMonth = selectedMonth ?? periodMonthAgg?._max.month ?? 12;
+  const monthlyWhere = (year: number): Prisma.MonthlyRecordWhereInput => ({
+    year,
+    month: { lte: comparisonEndMonth },
+    process: { factory: { name: { in: FACILITY_VISIBLE_FACTORIES } } },
+  });
+
+  const [currentMtbfAgg, previousMtbfAgg] = await Promise.all([
+    prisma.monthlyRecord.aggregate({
+      where: monthlyWhere(comparisonYear),
+      _sum: { operatingTime: true, stopCount: true, stopTime: true },
+    }),
+    prisma.monthlyRecord.aggregate({
+      where: monthlyWhere(comparisonYear - 1),
+      _sum: { operatingTime: true, stopCount: true, stopTime: true },
+    }),
+  ]);
+
+  const currentMtbfMttr = calcMtbfMttr(
+    currentMtbfAgg._sum.operatingTime ?? 0,
+    currentMtbfAgg._sum.stopCount ?? 0,
+    currentMtbfAgg._sum.stopTime ?? 0
+  );
+  const previousMtbfMttr = calcMtbfMttr(
+    previousMtbfAgg._sum.operatingTime ?? 0,
+    previousMtbfAgg._sum.stopCount ?? 0,
+    previousMtbfAgg._sum.stopTime ?? 0
+  );
+
+  const stopRepairTopRows = await prisma.repairTypeRecord.findMany({
+    where: {
+      AND: [
+        where,
+        { repairType: "정지수리" },
+        { durationMin: { not: null } },
+      ],
+    },
+    select: {
+      year: true,
+      month: true,
+      day: true,
+      equipment: true,
+      durationMin: true,
+      technicianCount: true,
+      repairType: true,
+      description: true,
+    },
+  });
 
   // 표시순서 맵 (repairType → displayOrder)
   const displayOrderMap = new Map(
@@ -204,32 +337,27 @@ export async function GET(req: Request) {
       totalDurationMin: g._sum.durationMin ?? 0,
     })),
     byEquipmentRepairType,
-    topRepairs: topRepairRows
-      .sort((a, b) => (b.repairTime ?? b.durationMin ?? 0) - (a.repairTime ?? a.durationMin ?? 0))
-      .slice(0, 10)
-      .map((r) => ({
-        equipment: r.equipment,
-        repairTime: r.repairTime ?? r.durationMin ?? 0,
-        repairType: normalizeRepairType(r.repairType) ?? "미분류",
-        description: r.description ?? "",
-      })),
-    improvementTopItems: improvementTopRows
-      .sort((a, b) => (b.durationMin ?? 0) - (a.durationMin ?? 0))
-      .slice(0, 10)
-      .map((r) => ({
-        equipment: r.equipment,
-        durationMin: r.durationMin ?? 0,
-        repairType: normalizeRepairType(r.repairType) ?? "미분류",
-        description: r.description ?? "",
-      })),
-    maintenanceTopItems: maintenanceTopRows
-      .sort((a, b) => (b.durationMin ?? 0) - (a.durationMin ?? 0))
-      .slice(0, 10)
-      .map((r) => ({
-        equipment: r.equipment,
-        durationMin: r.durationMin ?? 0,
-        repairType: r.repairType ?? "미분류",
-        description: r.description ?? "",
-      })),
+    mtbfMttrComparison: {
+      year: comparisonYear,
+      previousYear: comparisonYear - 1,
+      endMonth: comparisonEndMonth,
+      mtbf: currentMtbfMttr.mtbf,
+      mttr: currentMtbfMttr.mttr,
+      previousMtbf: previousMtbfMttr.mtbf,
+      previousMttr: previousMtbfMttr.mttr,
+      mtbfChangePct: percentChange(currentMtbfMttr.mtbf, previousMtbfMttr.mtbf),
+      mttrChangePct: percentChange(currentMtbfMttr.mttr, previousMtbfMttr.mttr),
+    },
+    topRepairs: groupTopWorkItems(stopRepairTopRows).map((r) => ({
+      ...r,
+      repairTime: r.durationMin,
+    })),
+    fabricationInstallTopItems: groupTopWorkItems(
+      improvementTopRows.filter((r) => normalizeRepairType(r.repairType) === FABRICATION_INSTALL_REPAIR_TYPE)
+    ),
+    developmentTopItems: groupTopWorkItems(
+      improvementTopRows.filter((r) => normalizeRepairType(r.repairType) === "개발작업")
+    ),
+    maintenanceTopItems: groupTopWorkItems(maintenanceTopRows),
   });
 }
