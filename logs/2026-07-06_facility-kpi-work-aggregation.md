@@ -67,7 +67,7 @@ Grouping key:
 
 ## Commit / Push / Deployment
 
-- Commit: `6b27557` (`Improve maintenance analysis KPI and work aggregation`).
+- Implementation commit: `c1f1401` (`Improve maintenance analysis KPI and work aggregation`).
 - Push: pending.
 - Vercel deployment: pending.
 - Production URL verification: pending.
