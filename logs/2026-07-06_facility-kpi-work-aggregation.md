@@ -67,12 +67,13 @@ Grouping key:
 
 ## Commit / Push / Deployment
 
-- Implementation commit: `c1f1401` (`Improve maintenance analysis KPI and work aggregation`).
-- Push: pending.
-- Vercel deployment: pending.
-- Production URL verification: pending.
+- Implementation/report commits pushed to `origin/main` through `3c0cf8f`.
+- Vercel production deployment after implementation push: `https://mtbf-dashboard-nr7hstici-gtmc92s-projects.vercel.app`, Ready, duration 42s.
+- Production alias verification: `https://mtbf-dashboard.vercel.app/facility` returned HTTP 200.
+- Production alias API verification: `https://mtbf-dashboard.vercel.app/api/facility/summary?year=2026&month=3` returned totalCount 289, MTBF 130.7h, MTTR 0.82h, 제작설치 TOP10 count 10.
+- Individual deployment URL note: `/facility` returned HTTP 200, but direct API access returned HTML content, so production API verification used the canonical alias.
 
 ## Remaining Actions
 
-- Commit and push this change.
-- Verify the Vercel production deployment after push.
+- None for the implemented `/facility` KPI and aggregation scope.
+- Project-wide `npm run lint` still has pre-existing unrelated lint failures listed above.
