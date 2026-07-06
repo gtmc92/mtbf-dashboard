@@ -67,13 +67,14 @@ Grouping key:
 
 ## Commit / Push / Deployment
 
-- Implementation/report commits pushed to `origin/main` through `3c0cf8f`.
-- Vercel production deployment after implementation push: `https://mtbf-dashboard-nr7hstici-gtmc92s-projects.vercel.app`, Ready, duration 42s.
+- Implementation/report commits pushed to `origin/main` through `a4cac21`.
+- Final Vercel production deployment after report verification push: `https://mtbf-dashboard-6pr3czx3a-gtmc92s-projects.vercel.app`, Ready, duration 43s.
+- Implementation deployment: `https://mtbf-dashboard-nr7hstici-gtmc92s-projects.vercel.app`, Ready, duration 42s.
 - Production alias verification: `https://mtbf-dashboard.vercel.app/facility` returned HTTP 200.
 - Production alias API verification: `https://mtbf-dashboard.vercel.app/api/facility/summary?year=2026&month=3` returned totalCount 289, MTBF 130.7h, MTTR 0.82h, 제작설치 TOP10 count 10.
 - Individual deployment URL note: `/facility` returned HTTP 200, but direct API access returned HTML content, so production API verification used the canonical alias.
 
 ## Remaining Actions
 
-- None for the implemented `/facility` KPI and aggregation scope.
+- Playwright MCP browser automation remains unavailable in this session because the required Node REPL browser execution tool was not exposed.
 - Project-wide `npm run lint` still has pre-existing unrelated lint failures listed above.
