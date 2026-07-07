@@ -111,3 +111,45 @@ Production `https://mtbf-dashboard.vercel.app/api/facility/summary?year=2026` �
 - 사고 처리 내용 유사도 기준으로 후보 표시
 - 사용자가 승인하면 분석용 그룹으로 묶기
 - 원본 행은 유지
+
+## 12. Reverification — 2026-07-07 d:\348.md
+같은 체크리스트(`MTBF-FACILITY-CUMULATIVE-TOP10-COMMIT-DEPLOY-VERIFY-001`) 기준으로 현재 HEAD와 production alias를 재검증했다.
+
+Git 상태:
+- `HEAD`: `fce9ea0`
+- `origin/main`: `fce9ea06c01e726ceddde59d562bfc7e2e4ce213`
+- `HEAD`와 `origin/main` 일치 확인
+- 커밋 제외 로컬 파일만 남아 있음:
+  - `.claude/settings.local.json`
+  - `.playwright-mcp/`
+  - repo root image files
+
+Local verification:
+- `npx eslint src/app/api/facility/summary/route.ts src/components/facility/MaintenanceAnalysisView.tsx src/app/input/page.tsx`: PASS
+- `npm run build`: PASS
+
+Production deployment:
+- Alias: `https://mtbf-dashboard.vercel.app`
+- Deployment URL: `https://mtbf-dashboard-oygrg42vw-gtmc92s-projects.vercel.app`
+- Deployment id: `dpl_CDTWk7iasBD5RzqG8rg6tL43msig`
+- Status: Ready
+
+Production checks:
+- `/input`: 200, `원본 데이터 업로드` 미노출 확인
+- `/facility`: 200, `투입인원 표시` 노출 확인
+- `/facility/admin`: 200, `원본 데이터 업로드` 노출 확인
+- `/api/facility/summary?year=2026&month=3`: 200, TOP10 신규 필드 포함 확인
+- `/api/facility/summary?year=2026`: 200, TOP10 신규 필드 포함 확인
+
+`생산 유턴 바끼임` production 확인:
+- `수퍼기어`: `durationMin 360`, `technicianCount 2`, `occurrenceCount 1`, `2026-05-18`
+- `스퍼기어`: `durationMin 180`, `technicianCount 1`, `occurrenceCount 1`, `2026-05-18`
+- 분리 원인: normalized 사고 처리 내용 차이. 오타/유사어 자동 병합은 이번 범위가 아니므로 정상.
+
+변경하지 않은 것:
+- DB schema 변경 없음
+- Prisma migration 생성 없음
+- 원본 데이터 삭제 없음
+- 원본 행 물리 병합 없음
+- 업로드 API 대규모 변경 없음
+- MTBF/MTTR 공식 변경 없음
