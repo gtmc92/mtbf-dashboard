@@ -19,51 +19,160 @@ type TopWorkRow = {
   month: number;
   day: number;
   equipment: string;
+  subEquipment: string | null;
+  repairItem: string | null;
   durationMin: number | null;
   technicianCount: number | null;
+  technician: string | null;
   repairType: string | null;
   description: string | null;
 };
 
+function normalizeTextForGrouping(value: string | null) {
+  return (value ?? "")
+    .normalize("NFKC")
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, " ")
+    .replace(/[\u00A0\u1680\u180E\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([,.(){}\[\]<>:;!?/\\|+-])\s*/g, "$1")
+    .replace(/([,.(){}\[\]<>:;!?/\\|+-])\1+/g, "$1")
+    .trim();
+}
+
+function cleanDisplayText(value: string | null) {
+  return (value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function dateKey(row: Pick<TopWorkRow, "year" | "month" | "day">) {
+  return `${row.year}-${String(row.month).padStart(2, "0")}-${String(row.day).padStart(2, "0")}`;
+}
+
 function groupTopWorkItems(rows: TopWorkRow[]) {
-  const map = new Map<
+  const eventMap = new Map<
     string,
     {
       year: number;
       month: number;
       day: number;
       equipment: string;
+      subEquipment: string;
+      repairItem: string;
       repairType: string;
-      description: string;
+      normalizedDescription: string;
+      representativeActionText: string;
       durationMin: number;
       technicianCount: number;
-      count: number;
+      workerNames: Set<string>;
     }
   >();
 
   for (const row of rows) {
     const repairType = normalizeRepairType(row.repairType) ?? "미분류";
-    const description = row.description ?? "";
-    const key = [row.year, row.month, row.day, row.equipment, repairType, description].join("::");
-    const current = map.get(key) ?? {
+    const subEquipment = cleanDisplayText(row.subEquipment);
+    const repairItem = cleanDisplayText(row.repairItem);
+    const normalizedDescription = normalizeTextForGrouping(row.description);
+    const representativeActionText = cleanDisplayText(row.description);
+    const eventKey = JSON.stringify([
+      row.year,
+      row.month,
+      row.day,
+      row.equipment,
+      subEquipment,
+      repairItem,
+      repairType,
+      normalizedDescription,
+    ]);
+    const current = eventMap.get(eventKey) ?? {
       year: row.year,
       month: row.month,
       day: row.day,
       equipment: row.equipment,
+      subEquipment,
+      repairItem,
       repairType,
-      description,
+      normalizedDescription,
+      representativeActionText,
       durationMin: 0,
       technicianCount: 0,
-      count: 1,
+      workerNames: new Set<string>(),
     };
     current.durationMin += row.durationMin ?? 0;
     current.technicianCount += row.technicianCount ?? 0;
-    map.set(key, current);
+    if (!current.representativeActionText && representativeActionText) {
+      current.representativeActionText = representativeActionText;
+    }
+    cleanDisplayText(row.technician)
+      .split(",")
+      .map((name) => name.trim())
+      .filter(Boolean)
+      .forEach((name) => current.workerNames.add(name));
+    eventMap.set(eventKey, current);
   }
 
-  return [...map.values()]
+  const cumulativeMap = new Map<
+    string,
+    {
+      equipment: string;
+      subEquipment: string;
+      repairItem: string;
+      repairType: string;
+      normalizedDescription: string;
+      description: string;
+      durationMin: number;
+      technicianCount: number;
+      occurrenceCount: number;
+      firstDate: string;
+      lastDate: string;
+      dates: Set<string>;
+      workerNames: Set<string>;
+    }
+  >();
+
+  for (const event of eventMap.values()) {
+    const cumulativeKey = JSON.stringify([
+      event.equipment,
+      event.subEquipment,
+      event.repairItem,
+      event.repairType,
+      event.normalizedDescription,
+    ]);
+    const eventDate = dateKey(event);
+    const current = cumulativeMap.get(cumulativeKey) ?? {
+      equipment: event.equipment,
+      subEquipment: event.subEquipment,
+      repairItem: event.repairItem,
+      repairType: event.repairType,
+      normalizedDescription: event.normalizedDescription,
+      description: event.representativeActionText,
+      durationMin: 0,
+      technicianCount: 0,
+      occurrenceCount: 0,
+      firstDate: eventDate,
+      lastDate: eventDate,
+      dates: new Set<string>(),
+      workerNames: new Set<string>(),
+    };
+    current.durationMin += event.durationMin;
+    current.technicianCount += event.technicianCount;
+    current.occurrenceCount += 1;
+    current.firstDate = eventDate < current.firstDate ? eventDate : current.firstDate;
+    current.lastDate = eventDate > current.lastDate ? eventDate : current.lastDate;
+    current.dates.add(eventDate);
+    if (!current.description && event.representativeActionText) {
+      current.description = event.representativeActionText;
+    }
+    event.workerNames.forEach((name) => current.workerNames.add(name));
+    cumulativeMap.set(cumulativeKey, current);
+  }
+
+  return [...cumulativeMap.values()]
     .sort((a, b) => b.durationMin - a.durationMin)
-    .slice(0, 10);
+    .slice(0, 10)
+    .map((item) => ({
+      ...item,
+      dates: [...item.dates].sort(),
+      workerNames: [...item.workerNames].sort(),
+    }));
 }
 
 function calcMtbfMttr(opMin: number, stopCount: number, stopMin: number) {
@@ -168,8 +277,11 @@ export async function GET(req: Request) {
         month: true,
         day: true,
         equipment: true,
+        subEquipment: true,
+        repairItem: true,
         durationMin: true,
         technicianCount: true,
+        technician: true,
         repairType: true,
         description: true,
       },
@@ -188,8 +300,11 @@ export async function GET(req: Request) {
         month: true,
         day: true,
         equipment: true,
+        subEquipment: true,
+        repairItem: true,
         durationMin: true,
         technicianCount: true,
+        technician: true,
         repairType: true,
         description: true,
       },
@@ -267,8 +382,11 @@ export async function GET(req: Request) {
       month: true,
       day: true,
       equipment: true,
+      subEquipment: true,
+      repairItem: true,
       durationMin: true,
       technicianCount: true,
+      technician: true,
       repairType: true,
       description: true,
     },

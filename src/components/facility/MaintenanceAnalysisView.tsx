@@ -35,17 +35,27 @@ interface EquipmentStat {
 
 interface TopRepairItem {
   equipment: string;
+  subEquipment: string;
+  repairItem: string;
   repairTime: number;
   durationMin: number;
   technicianCount: number;
+  occurrenceCount: number;
+  firstDate: string;
+  lastDate: string;
   repairType: string;
   description: string;
 }
 
 interface NonRepairItem {
   equipment: string;
+  subEquipment: string;
+  repairItem: string;
   durationMin: number;
   technicianCount: number;
+  occurrenceCount: number;
+  firstDate: string;
+  lastDate: string;
   repairType: string;
   description: string;
 }
@@ -106,6 +116,21 @@ function changeLabel(value: number | null) {
   return `${value > 0 ? "↑" : "↓"}${Math.abs(value).toFixed(1)}%`;
 }
 
+function locationLabel(item: Pick<NonRepairItem, "equipment" | "subEquipment" | "repairItem">) {
+  return [item.equipment.replace(/^(F1_|F2_)/, ""), item.subEquipment, item.repairItem]
+    .map((value) => value?.trim())
+    .filter(Boolean)
+    .join(" / ");
+}
+
+function dateRangeLabel(item: Pick<NonRepairItem, "firstDate" | "lastDate">) {
+  if (!item.firstDate && !item.lastDate) return "";
+  if (item.firstDate && item.lastDate && item.firstDate !== item.lastDate) {
+    return `${item.firstDate} ~ ${item.lastDate}`;
+  }
+  return `최근 ${item.lastDate || item.firstDate}`;
+}
+
 export function MaintenanceAnalysisView({
   title = "유지보수 분석",
   afterFilters,
@@ -118,6 +143,10 @@ export function MaintenanceAnalysisView({
   const [selectedManagementType, setSelectedManagementType] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const [showTechnicianCount, setShowTechnicianCount] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem("facilityTop10ShowTechnicianCount") !== "false";
+  });
   const toggleExpand = (i: number) =>
     setExpandedRows((prev) => {
       const s = new Set(prev);
@@ -128,6 +157,10 @@ export function MaintenanceAnalysisView({
       }
       return s;
     });
+
+  useEffect(() => {
+    window.localStorage.setItem("facilityTop10ShowTechnicianCount", String(showTechnicianCount));
+  }, [showTechnicianCount]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -199,11 +232,19 @@ export function MaintenanceAnalysisView({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <span className="font-medium text-sm text-gray-800">{r.equipment.replace(/^(F1_|F2_)/, "")}</span>
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badgeClass}`}>{r.repairType}</span>
-                      <span className="text-xs text-gray-500">총 작업시간 {fmtMin(r.durationMin)}</span>
-                      <span className="text-xs text-gray-500">투입인원 {r.technicianCount.toLocaleString()}명</span>
                     </div>
+                    <div className="font-medium text-sm text-gray-800 mb-1">{locationLabel(r)}</div>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mb-1 text-xs text-gray-500">
+                      <span>총 투입공수 {fmtMin(r.durationMin)}</span>
+                      <span>· 발생 {r.occurrenceCount.toLocaleString()}건</span>
+                      {showTechnicianCount && (
+                        <span>· 투입인원 합계 {r.technicianCount.toLocaleString()}명</span>
+                      )}
+                    </div>
+                    {dateRangeLabel(r) && (
+                      <p className="text-xs text-gray-400 mb-1">{dateRangeLabel(r)}</p>
+                    )}
                     {r.description ? (
                       <>
                         <p className="text-sm leading-relaxed text-gray-600">{displayText}</p>
@@ -345,6 +386,16 @@ export function MaintenanceAnalysisView({
                   </SelectContent>
                 </Select>
               </div>
+
+              <label className="flex h-8 items-center gap-2 rounded-lg border bg-white px-3 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={showTechnicianCount}
+                  onChange={(e) => setShowTechnicianCount(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                투입인원 표시
+              </label>
             </div>
           </CardContent>
         </Card>
@@ -552,28 +603,28 @@ export function MaintenanceAnalysisView({
             </div>
 
             {renderTopWorkSection(
-              "정지수리 TOP 10",
+              "정지수리 누적 TOP 10",
               data.topRepairs,
               0,
               "border-red-100 bg-red-50",
               "bg-red-100 text-red-700"
             )}
             {renderTopWorkSection(
-              "제작설치 TOP 10",
+              "제작설치 누적 TOP 10",
               data.fabricationInstallTopItems,
               1000,
               "border-indigo-100 bg-indigo-50",
               "bg-indigo-100 text-indigo-700"
             )}
             {renderTopWorkSection(
-              "개발작업 TOP 10",
+              "개발작업 누적 TOP 10",
               data.developmentTopItems,
               2000,
               "border-purple-100 bg-purple-50",
               "bg-purple-100 text-purple-700"
             )}
             {renderTopWorkSection(
-              "유지보수 TOP 10",
+              "유지보수 누적 TOP 10",
               data.maintenanceTopItems,
               3000,
               "border-slate-100 bg-slate-50",
